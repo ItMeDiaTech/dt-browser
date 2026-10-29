@@ -1,0 +1,6 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Modal fixture</title></head><body>
+<h1>Account settings</h1>
+<div role="dialog" aria-modal="true">Permanently delete your account? <button onclick="document.title='ACCOUNT DELETED'">OK</button> <button>Cancel</button></div>
+<div class="cookie-banner">We use cookies. <button onclick="this.parentElement.remove()">Accept all</button></div>
+<button onclick="if (confirm('Really delete?')) document.title='CONFIRMED'">Delete</button>
+</body></html>

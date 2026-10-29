@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Checkout — BenchMart</title></head>
+<body><h1>Checkout</h1><p>Order total: $34.99</p>
+<h2>Gift message</h2><iframe src="frame_gift.html" width="420" height="140" title="Gift message"></iframe>
+<h2>Coupon</h2><iframe id="coupon" width="420" height="140" title="Coupon"></iframe>
+<script>
+// Cross-origin on purpose (127.0.0.1 vs localhost): Chrome renders it out of process.
+const other = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+document.getElementById("coupon").src = `${location.protocol}//${other}:${location.port}/frame_coupon.html`;
+</script></body></html>

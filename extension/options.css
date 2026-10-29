@@ -1,0 +1,47 @@
+main { max-width: 680px; margin: 0 auto; padding: 40px 24px 56px; }
+header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.015em; }
+header p { margin-top: 6px; max-width: 60ch; }
+
+section { margin-top: 36px; }
+h2 { font-size: 15px; font-weight: 650; padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-panel); padding: 14px 16px; }
+.status .signal { font-size: 12.5px; max-width: 420px; }
+.status-row { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.status-row p { flex: 1; overflow-wrap: anywhere; }
+.status .err { margin-top: 6px; }
+
+.field { margin-top: 18px; border: 0; }
+.field > label, legend { display: block; font-weight: 600; margin-bottom: 6px; }
+.inline { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.inline .grow { flex: 1; min-width: 220px; }
+#bridgePort { width: 96px; }
+#attachTimeout { width: 80px; }
+.help { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; max-width: 64ch; }
+code { font-family: var(--mono); font-size: 11.5px; }
+.field .err { margin-top: 4px; }
+
+.toggle { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; cursor: pointer; }
+.toggle .switch { margin-top: 1px; }
+.toggle strong { display: block; font-weight: 600; }
+.choice { display: flex; gap: 8px; align-items: center; padding: 3px 0; cursor: pointer; }
+.choice input { accent-color: var(--control); }
+
+.log { margin-top: 14px; padding: 0; max-height: 360px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+th { position: sticky; top: 0; background: var(--surface); text-align: left; font-weight: 600; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--line); }
+td { padding: 5px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+.num { text-align: right; }
+td.failed { color: var(--fault); overflow-wrap: anywhere; }
+.empty { padding: 16px; }
+.actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+
+footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+footer .saved { flex: 1; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 520px) {
+  main { padding: 24px 16px 40px; }
+  .status-row { flex-direction: column; align-items: flex-start; }
+}

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="options.css">
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="name"></h1>
+    <p class="muted">Local agents (Hermes Agent, jev-harness) ride along in this Chrome through the bridge on your machine, while you keep the controls. Changes save as you make them.</p>
+  </header>
+
+  <section aria-labelledby="h-conn">
+    <h2 id="h-conn">Connection</h2>
+    <div class="panel status" id="statusBox" data-status="disconnected">
+      <div class="signal" aria-hidden="true">
+        <span class="node">Agents</span><span class="link"></span>
+        <span class="node bridge">Bridge</span><span class="link state"></span>
+        <span class="node browser">Chrome</span>
+      </div>
+      <div class="status-row">
+        <p role="status"><span class="state-word" id="stateWord"></span> <span class="muted" id="stateDetail"></span></p>
+        <button type="button" id="reconnect">Reconnect</button>
+      </div>
+      <p class="err" id="stateError" hidden></p>
+    </div>
+
+    <div class="field">
+      <label for="bridgeHost">Bridge address</label>
+      <div class="inline">
+        <select id="bridgeHost" data-key="bridgeHost">
+          <option value="127.0.0.1">127.0.0.1</option>
+          <option value="localhost">localhost</option>
+        </select>
+        <span class="muted">port</span>
+        <input type="number" id="bridgePort" data-key="bridgePort" min="1024" max="65535" step="1" inputmode="numeric" aria-label="Bridge port">
+      </div>
+      <p class="help">The bridge listens on 127.0.0.1:18765 unless it was started with <code>--ws-port</code>. jev-harness reads the same address from <code>JEV_BRIDGE</code>.</p>
+      <p class="err" data-error="bridgeHost" hidden></p>
+      <p class="err" data-error="bridgePort" hidden></p>
+    </div>
+
+    <div class="field">
+      <label for="token">Bridge token</label>
+      <div class="inline">
+        <input type="password" class="mono grow" id="token" autocomplete="off" spellcheck="false" placeholder="Paste from bridge\token.txt">
+        <button type="button" id="showToken" aria-pressed="false">Show</button>
+        <button type="button" class="primary" id="saveToken">Save token</button>
+      </div>
+      <p class="help" id="tokenState"></p>
+      <p class="err" data-error="token" hidden></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-access">
+    <h2 id="h-access">Access</h2>
+    <label class="toggle">
+      <input type="checkbox" class="switch" data-key="enabled">
+      <span><strong>Agent control</strong><span class="help">Off closes the bridge connection and refuses every command until you turn it back on.</span></span>
+    </label>
+    <label class="toggle">
+      <input type="checkbox" class="switch" data-key="relayEnabled">
+      <span><strong>DevTools relay</strong><span class="help">Gives jev-harness and Playwright (the bridge's CDP endpoint) DevTools access to tabs through Chrome's debugger. Turning it off detaches every tab they hold.</span></span>
+    </label>
+  </section>
+
+  <section aria-labelledby="h-tabs">
+    <h2 id="h-tabs">jev-harness tabs</h2>
+    <label class="toggle">
+      <input type="checkbox" class="switch" data-key="relayReuseTabs">
+      <span><strong>Use my open tabs</strong><span class="help">When a task targets a site you already have open, jev-harness may work in (and navigate) that tab, never the one you are looking at. Off, the default, limits it to tabs it opened itself.</span></span>
+    </label>
+    <fieldset class="field">
+      <legend>Open new tabs in</legend>
+      <label class="choice"><input type="radio" name="relayNewTabs" value="current" data-key="relayNewTabs"> The current window, in the background</label>
+      <label class="choice"><input type="radio" name="relayNewTabs" value="separate" data-key="relayNewTabs"> A separate window kept for relay clients</label>
+    </fieldset>
+    <div class="field">
+      <label for="attachTimeout">Attach timeout</label>
+      <div class="inline">
+        <input type="number" id="attachTimeout" min="1" max="30" step="0.5" inputmode="decimal">
+        <span class="muted">seconds</span>
+      </div>
+      <p class="help">How long to wait for Chrome's debugger to attach before trying another tab. Raise it for slow-loading pages.</p>
+      <p class="err" data-error="relayAttachTimeoutMs" hidden></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-log">
+    <h2 id="h-log">Activity log</h2>
+    <fieldset class="field">
+      <legend class="sr-only">What to record</legend>
+      <label class="choice"><input type="radio" name="logLevel" value="commands" data-key="logLevel"> Record commands</label>
+      <label class="choice"><input type="radio" name="logLevel" value="all" data-key="logLevel"> Record commands and every DevTools call (busy)</label>
+      <label class="choice"><input type="radio" name="logLevel" value="off" data-key="logLevel"> Don't record</label>
+      <p class="help">The log keeps the last 200 entries and is cleared when Chrome closes.</p>
+    </fieldset>
+    <div class="panel log">
+      <table>
+        <thead><tr><th scope="col">Time</th><th scope="col">Command</th><th scope="col">Tab</th><th scope="col" class="num">Duration</th><th scope="col">Result</th></tr></thead>
+        <tbody id="activity"></tbody>
+      </table>
+      <p class="muted empty" id="activityEmpty" hidden></p>
+    </div>
+    <div class="actions"><button type="button" id="clearLog">Clear log</button></div>
+  </section>
+
+  <footer>
+    <span class="muted" id="version"></span>
+    <span class="saved ok" id="saved" role="status"></span>
+    <button type="button" class="quiet" id="resetDefaults">Reset to defaults</button>
+  </footer>
+</main>
+<script src="settings.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

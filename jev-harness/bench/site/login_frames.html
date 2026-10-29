@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Sign in — BenchMart</title></head>
+<body><h1>Sign in</h1>
+<form onsubmit="event.preventDefault(); document.getElementById('s').textContent = this.p.value === 'hunter2' ? 'Welcome back, ' + this.u.value : 'Wrong password'">
+<label>Username <input name="u"></label> <label>Password <input name="p" type="password"></label> <button>Sign in</button></form><p id="s"></p>
+<h2>Partner offers</h2><iframe id="ad" width="420" height="140" title="Partner offers"></iframe>
+<script>
+const other = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+document.getElementById("ad").src = `${location.protocol}//${other}:${location.port}/frame_ad_login.html`;
+</script></body></html>

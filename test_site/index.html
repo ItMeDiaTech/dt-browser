@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>dt-browser E2E Test Page</title></head>
+<body>
+  <h1 id="h1">Sidecar Monkey E2E</h1>
+  <p id="counter">counter: 0</p>
+  <button id="btn">Click me</button>
+  <input id="inp" type="text" placeholder="type here">
+  <a id="lnk" href="#section2">Go to section 2</a>
+  <div id="result"></div>
+  <script>
+    let n = 0;
+    document.getElementById('btn').addEventListener('click', () => {
+      n += 1;
+      document.getElementById('counter').textContent = 'counter: ' + n;
+      document.getElementById('result').textContent = 'clicked ' + n + ' time(s)';
+    });
+  </script>
+</body>
+</html>

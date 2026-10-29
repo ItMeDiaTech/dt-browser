@@ -1,0 +1,14 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Newsletter — BenchMart</title><script src="data.js"></script></head>
+<body><script>document.write(NAV)</script>
+<h1>Join the BenchMart newsletter</h1>
+<form id="f"><p><label>Full name <input id="name" required></label></p>
+<p><label>Email address <input id="email" type="email" required></label></p>
+<p><label>How often? <select id="freq"><option>Choose…</option><option>Daily</option><option>Weekly</option><option>Monthly</option></select></label></p>
+<p><label><input type="checkbox" id="deals"> Include partner deals</label></p>
+<button type="submit">Subscribe</button></form><p id="out"></p>
+<script>
+f.addEventListener("submit", e => { e.preventDefault();
+  if (freq.value === "Choose…") { out.textContent = "Please choose a frequency."; return; }
+  out.textContent = `Subscribed ${email.value} (${document.getElementById("name").value}) — ${freq.value} digest${deals.checked ? " with partner deals" : ""}.`; });
+document.write(FOOTER);
+</script></body></html>

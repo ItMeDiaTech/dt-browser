@@ -1,0 +1,8 @@
+<!doctype html><html><head><meta charset="utf-8"><title>BenchMart — Electronics</title><script src="data.js"></script></head>
+<body><script>document.write(NAV)</script>
+<h1>BenchMart</h1><p>Electronics, accessories and more. Today's deals refresh at midnight.</p>
+<form action="results.html" role="search"><input type="search" name="q" aria-label="Search products" placeholder="Search products"><button>Search</button></form>
+<h2>Popular categories</h2><ul><li><a href="results.html?q=mouse">Mice</a></li><li><a href="results.html?q=keyboard">Keyboards</a></li><li><a href="results.html?q=hub">Hubs & docks</a></li><li><a href="results.html?q=pad">Mouse pads</a></li></ul>
+<h2>Featured</h2><ul id="featured"></ul>
+<script>featured.innerHTML = PRODUCTS.slice(3).map(p => `<li><a href="product.html?id=${p.id}">${p.name}</a></li>`).join(""); document.write(FOOTER)</script>
+</body></html>

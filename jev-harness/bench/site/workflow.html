@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Synthetic document workflow</title>
+<style>
+  body { font: 16px system-ui; max-width: 760px; margin: 32px auto; }
+  label { display: block; margin: 16px 0; }
+  textarea, [contenteditable] { display: block; width: 100%; height: 140px; overflow: auto; white-space: pre-wrap; border: 1px solid #777; }
+  [role=listbox] { position: absolute; z-index: 2; background: white; border: 1px solid #555; min-width: 240px; }
+  [role=option] { padding: 12px; cursor: pointer; }
+  [role=option]:focus { outline: 2px solid blue; }
+  #distantWorkspace { margin-top: 110vh; }
+</style></head><body>
+<main>
+  <h1>Synthetic document workflow</h1>
+  <p>Local test data only.</p>
+  <button id="workspaceTrigger" aria-haspopup="listbox" aria-expanded="false" aria-controls="workspaceOptions">Red team</button>
+  <label>Plain text<textarea id="plain" aria-label="Plain text">Original plain text</textarea></label>
+  <label id="editorLabel">Source editor</label>
+  <!-- A pre preserves blank lines in editable source text without HTML block serialization. -->
+  <pre id="editor" contenteditable="true" role="textbox" aria-labelledby="editorLabel" aria-multiline="true">Original source text</pre>
+  <label>Decoy field<input id="decoy" value="Leave this unchanged"></label>
+  <button id="inertSave">Preview save</button>
+  <button id="save">Save document</button>
+  <p id="status" role="status">Not saved</p>
+</main>
+<script>
+  const trigger = document.querySelector('#workspaceTrigger'), plain = document.querySelector('#plain');
+  const editor = document.querySelector('#editor'), status = document.querySelector('#status');
+  const storageKey = 'dt-browser-workflow';
+  let revision = 0;
+  const options = document.createElement('div');
+  options.id = 'workspaceOptions'; options.role = 'listbox'; options.ariaLabel = 'Workspace'; options.hidden = true;
+  for (const name of ['Blue team', 'Blue team (archived)', 'Green team']) {
+    const option = document.createElement('div');
+    option.role = 'option'; option.tabIndex = -1; option.textContent = name; option.ariaSelected = 'false';
+    if (name === 'Green team') option.id = 'distantWorkspace';
+    option.onclick = () => {
+      trigger.textContent = name;
+      for (const sibling of options.children) sibling.ariaSelected = String(sibling === option);
+      options.hidden = true; trigger.ariaExpanded = 'false'; trigger.focus();
+    };
+    options.append(option);
+  }
+  document.body.append(options);
+  trigger.onclick = () => {
+    options.hidden = !options.hidden; trigger.ariaExpanded = String(!options.hidden);
+    const rect = trigger.getBoundingClientRect();
+    options.style.top = `${rect.bottom + scrollY}px`; options.style.left = `${rect.left + scrollX}px`;
+    if (!options.hidden) options.firstElementChild.focus({ preventScroll: true });
+  };
+  options.onkeydown = (event) => {
+    const items = [...options.children], index = items.indexOf(document.activeElement);
+    if (event.key === 'Escape') { options.hidden = true; trigger.ariaExpanded = 'false'; trigger.focus(); }
+    else if (event.key === 'Enter' || event.key === ' ') document.activeElement.click();
+    else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') items[(index + (event.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+    else return;
+    event.preventDefault();
+  };
+  document.querySelector('#inertSave').onclick = () => { status.textContent = 'Preview only — changes not persisted'; };
+  document.querySelector('#save').onclick = async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true; status.textContent = 'Saving…';
+    const record = { workspace: trigger.textContent, plain: plain.value, editor: editor.innerText, revision: revision + 1 };
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    try { localStorage.setItem(storageKey, JSON.stringify(record)); revision = record.revision; status.textContent = `Saved revision ${revision}`; }
+    catch { status.textContent = 'Save failed'; }
+    finally { button.disabled = false; }
+  };
+  try {
+    const record = JSON.parse(localStorage.getItem(storageKey));
+    if (record) {
+      trigger.textContent = record.workspace; plain.value = record.plain; editor.innerText = record.editor; revision = record.revision;
+      for (const option of options.children) option.ariaSelected = String(option.textContent === record.workspace);
+      status.textContent = `Saved revision ${revision}`;
+    }
+  } catch { status.textContent = 'Could not restore saved document'; }
+</script></body></html>

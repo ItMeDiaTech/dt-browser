@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title></title>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <h1 id="name"></h1>
+    <span class="muted" id="version"></span>
+    <button class="quiet" id="openSettings" type="button">Settings</button>
+  </header>
+
+  <section class="status" id="statusBox" data-status="disconnected">
+    <div class="signal" aria-hidden="true">
+      <span class="node">Agents</span><span class="link"></span>
+      <span class="node bridge">Bridge</span><span class="link state"></span>
+      <span class="node browser">Chrome</span>
+    </div>
+    <p role="status"><span class="state-word" id="stateWord"></span> <span class="muted" id="stateDetail"></span></p>
+    <p class="err" id="stateError" hidden></p>
+  </section>
+
+  <label class="control">
+    <input type="checkbox" class="switch" id="allow">
+    <span>
+      <strong>Agent control</strong>
+      <span class="muted" id="allowHint"></span>
+    </span>
+  </label>
+
+  <form class="token" id="tokenForm" hidden>
+    <label for="token">Bridge token</label>
+    <div class="row">
+      <input type="password" class="mono" id="token" autocomplete="off" spellcheck="false" placeholder="Paste from bridge\token.txt">
+      <button class="primary" type="submit">Save token</button>
+    </div>
+    <p class="err" id="tokenError" hidden></p>
+  </form>
+
+  <section class="activity">
+    <h2>Recent commands</h2>
+    <ol id="activity"></ol>
+    <p class="muted" id="activityEmpty" hidden></p>
+  </section>
+
+  <footer>
+    <button type="button" id="reconnect">Reconnect</button>
+  </footer>
+  <script src="settings.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

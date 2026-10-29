@@ -1,0 +1,14 @@
+<!doctype html><title>Upload fixture</title>
+<label class="btn">Add photos <input id="photos" type="file" accept="image/*" multiple style="position:absolute;left:-9999px"></label>
+<p id="chosen"></p>
+<div id="editor" tabindex="0" style="border:1px solid #888;min-height:40px">click to edit</div>
+<p id="keys"></p>
+<script>
+photos.addEventListener("change", () => { chosen.textContent = "chosen: " + [...photos.files].map((f) => f.name).join(", "); });
+// A canvas-style editor: keeps its own model and ignores the DOM value setter, like Monaco.
+let model = ""; editor.addEventListener("click", () => editor.focus());
+editor.addEventListener("beforeinput", (e) => { e.preventDefault(); if (e.data) { model += e.data; editor.textContent = "code: " + model; } });
+editor.contentEditable = "true";
+document.addEventListener("keydown", (e) => { if (e.ctrlKey && e.key === "k") keys.textContent = "shortcut ctrl+k"; if (e.key === "Escape") keys.textContent = "escape pressed"; });
+setTimeout(() => document.body.append(Object.assign(document.createElement("p"), { textContent: "Upload complete" })), 1500);
+</script>

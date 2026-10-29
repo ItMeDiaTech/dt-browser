@@ -1,0 +1,11 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Closed components — BenchMart</title></head>
+<body><h1>Members area</h1><vault-box></vault-box>
+<script>
+customElements.define("vault-box", class extends HTMLElement {
+  connectedCallback() {
+    const r = this.attachShadow({ mode: "closed" }); // closed: this.shadowRoot is null for everyone
+    r.innerHTML = `<p>Member price: <b>$19.99</b></p><label>Promo code <input></label> <button>Redeem</button><p id="m"></p>`;
+    r.querySelector("button").onclick = () => { r.getElementById("m").textContent = `Promo ${r.querySelector("input").value} redeemed`; };
+  }
+});
+</script></body></html>

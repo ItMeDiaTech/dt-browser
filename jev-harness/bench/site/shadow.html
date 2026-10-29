@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Shadow store — BenchMart</title></head>
+<body><h1>BenchMart components</h1>
+<shop-search></shop-search>
+<p>Deal of the day:</p><price-tag name="SteelSeries QcK Mouse Pad" price="$9.99"></price-tag>
+<script>
+customElements.define("shop-search", class extends HTMLElement {
+  connectedCallback() {
+    const r = this.attachShadow({ mode: "open" });
+    r.innerHTML = `<form action="results.html"><input name="q" type="text" placeholder="Search the catalog"><button>Go</button></form>`;
+  }
+});
+customElements.define("price-tag", class extends HTMLElement {
+  connectedCallback() {
+    const r = this.attachShadow({ mode: "open" });
+    r.innerHTML = `<div><b>${this.getAttribute("name")}</b> costs <span>${this.getAttribute("price")}</span> <button>Add to cart</button><p id="m"></p></div>`;
+    r.querySelector("button").onclick = () => { r.getElementById("m").textContent = `Added ${this.getAttribute("name")} to your cart.`; };
+  }
+});
+</script></body></html>

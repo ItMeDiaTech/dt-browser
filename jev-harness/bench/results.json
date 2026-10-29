@@ -1,0 +1,783 @@
+{
+ "method": "tiktoken o200k_base over compact JSON of tool name+arguments+result; images ceil(w/28)*ceil(h/28) (Claude 4.7+ tier)",
+ "results": {
+  "price": {
+   "dt-browser": {
+    "calls": 8,
+    "payload_tokens": 1505,
+    "schema_tokens": 467,
+    "turns": 9,
+    "cumulative_input_tokens": 12433,
+    "success": true
+   },
+   "jev-harness": {
+    "calls": 1,
+    "payload_tokens": 174,
+    "schema_tokens": 218,
+    "turns": 2,
+    "cumulative_input_tokens": 610,
+    "success": true,
+    "status": "done",
+    "jev_calls": 4,
+    "jev_input_tokens": 6797,
+    "elapsed_ms": 1883
+   },
+   "claude-in-chrome": {
+    "calls": 16,
+    "payload_tokens": 2341,
+    "schema_tokens": 2967,
+    "turns": 17,
+    "cumulative_input_tokens": 68057,
+    "success": true
+   },
+   "claude-in-chrome (clean path)": {
+    "calls": 9,
+    "payload_tokens": 982,
+    "schema_tokens": 2967,
+    "turns": 10,
+    "cumulative_input_tokens": 34154,
+    "success": true
+   }
+  },
+  "form": {
+   "dt-browser": {
+    "calls": 10,
+    "payload_tokens": 2082,
+    "schema_tokens": 467,
+    "turns": 11,
+    "cumulative_input_tokens": 19727,
+    "success": true
+   },
+   "jev-harness": {
+    "calls": 1,
+    "payload_tokens": 239,
+    "schema_tokens": 218,
+    "turns": 2,
+    "cumulative_input_tokens": 675,
+    "success": true,
+    "status": "done",
+    "jev_calls": 8,
+    "jev_input_tokens": 18074,
+    "elapsed_ms": 4181
+   },
+   "claude-in-chrome": {
+    "calls": 16,
+    "payload_tokens": 2209,
+    "schema_tokens": 2967,
+    "turns": 17,
+    "cumulative_input_tokens": 68950,
+    "success": true
+   },
+   "claude-in-chrome (clean path)": {
+    "calls": 10,
+    "payload_tokens": 1296,
+    "schema_tokens": 2967,
+    "turns": 11,
+    "cumulative_input_tokens": 39860,
+    "success": true
+   }
+  },
+  "wiki": {
+   "dt-browser": {
+    "calls": 9,
+    "payload_tokens": 5513,
+    "schema_tokens": 467,
+    "turns": 10,
+    "cumulative_input_tokens": 35531,
+    "success": true
+   },
+   "jev-harness": {
+    "calls": 1,
+    "payload_tokens": 213,
+    "schema_tokens": 218,
+    "turns": 2,
+    "cumulative_input_tokens": 649,
+    "success": true,
+    "status": "done",
+    "jev_calls": 3,
+    "jev_input_tokens": 30592,
+    "elapsed_ms": 2047
+   },
+   "claude-in-chrome": {
+    "calls": 7,
+    "payload_tokens": 780,
+    "schema_tokens": 2967,
+    "turns": 8,
+    "cumulative_input_tokens": 26568,
+    "success": true
+   },
+   "claude-in-chrome (clean path)": {
+    "calls": 5,
+    "payload_tokens": 567,
+    "schema_tokens": 2967,
+    "turns": 6,
+    "cumulative_input_tokens": 19348,
+    "success": true
+   }
+  }
+ },
+ "schemas": {
+  "jev-harness": [
+   {
+    "name": "browse",
+    "description": "Complete a web goal end to end in a Jev-driven Chrome (one call, no page dumps). Returns status, steps and the page lines that answer the goal. Omit url to continue in the current tab.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "goal": {
+       "type": "string"
+      },
+      "url": {
+       "type": "string"
+      },
+      "max_steps": {
+       "type": "integer"
+      }
+     },
+     "required": [
+      "goal"
+     ]
+    }
+   },
+   {
+    "name": "read",
+    "description": "No-agent page read: text (3000 chars) and numbered elements. With query, returns only the lines that answer it.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "url": {
+       "type": "string"
+      },
+      "query": {
+       "type": "string"
+      }
+     }
+    }
+   },
+   {
+    "name": "act",
+    "description": "Manual takeover on a numbered element from read/browse. action: click|type|submit|select|enter|scroll_down|scroll_up|back.",
+    "inputSchema": {
+     "type": "object",
+     "properties": {
+      "action": {
+       "type": "string"
+      },
+      "index": {
+       "type": "integer"
+      },
+      "text": {
+       "type": "string"
+      }
+     },
+     "required": [
+      "action"
+     ]
+    }
+   }
+  ]
+ },
+ "raw": {
+  "price": {
+   "dt-browser": [
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "navigate",
+      "params": {
+       "url": "http://127.0.0.1:8911/index.html"
+      }
+     },
+     "result": {
+      "tabId": 978952536,
+      "url": "http://127.0.0.1:8911/index.html",
+      "title": "BenchMart — Electronics",
+      "status": "complete"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {},
+     "result": {
+      "ok": true,
+      "url": "http://127.0.0.1:8911/index.html",
+      "title": "BenchMart — Electronics",
+      "readyState": "complete",
+      "text": "Home · Deals · Keyboards · Mice · Newsletter · Help · Account · Cart (0)\nBenchMart\n\nElectronics, accessories and more. Today's deals refresh at midnight.\n\nSearch\nPopular categories\nMice\nKeyboards\nHubs & docks\nMouse pads\nFeatured\nRazer DeathAdder Wired Gaming Mouse\nKeychron K2 Wireless Keyboard\nSteelSeries QcK Mouse Pad\nAnker 7-in-1 USB-C Hub\n\n© 2026 BenchMart. Free shipping over $50. 30-day returns.\n\nAbout Careers Privacy Terms Contact",
+      "text_meta": {
+       "offset": 0,
+       "total": 439,
+       "truncated": false,
+       "next_offset": null
+      },
+      "elements": "[1] a \"Home\" href=\"http://127.0.0.1:8911/index.html\"\n[2] a \"Deals\" href=\"http://127.0.0.1:8911/results.html?q=deals\"\n[3] a \"Keyboards\" href=\"http://127.0.0.1:8911/results.html?q=keyboard\"\n[4] a \"Mice\" href=\"http://127.0.0.1:8911/results.html?q=mouse\"\n[5] a \"Newsletter\" href=\"http://127.0.0.1:8911/newsletter.html\"\n[6] a \"Help\" href=\"http://127.0.0.1:8911/index.html#help\"\n[7] a \"Account\" href=\"http://127.0.0.1:8911/index.html#account\"\n[8] a \"Cart (0)\" href=\"http://127.0.0.1:8911/index.html#cart\"\n[9] h1 \"BenchMart\"\n[10] input \"Search products\" type=\"search\"\n[11] button \"Search\"\n[12] h2 \"Popular categories\"\n[13] a \"Mice\" href=\"http://127.0.0.1:8911/results.html?q=mouse\"\n[14] a \"Keyboards\" href=\"http://127.0.0.1:8911/results.html?q=keyboard\"\n[15] a \"Hubs & docks\" href=\"http://127.0.0.1:8911/results.html?q=hub\"\n[16] a \"Mouse pads\" href=\"http://127.0.0.1:8911/results.html?q=pad\"\n[17] h2 \"Featured\"\n[18] a \"Razer DeathAdder Wired Gaming Mouse\" href=\"http://127.0.0.1:8911/product.html?id=rz1\"\n[19] a \"Keychron K2 Wireless Keyboard\" href=\"http://127.0.0.1:8911/product.html?id=kb1\"\n[20] a \"SteelSeries QcK Mouse Pad\" href=\"http://127.0.0.1:8911/product.html?id=pad\"\n[21] a \"Anker 7-in-1 USB-C Hub\" href=\"http://127.0.0.1:8911/product.html?id=hub\"\n[22] a \"About\" href=\"http://127.0.0.1:8911/index.html#about\"\n[23] a \"Careers\" href=\"http://127.0.0.1:8911/index.html#careers\"\n[24] a \"Privacy\" href=\"http://127.0.0.1:8911/index.html#privacy\"\n[25] a \"Terms\" href=\"http://127.0.0.1:8911/index.html#terms\"\n[26] a \"Contact\" href=\"http://127.0.0.1:8911/index.html#contact\"",
+      "element_meta": {
+       "offset": 0,
+       "returned": 26,
+       "total": 26,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "type",
+      "params": {
+       "target": 10,
+       "text": "wireless mouse"
+      }
+     },
+     "result": {
+      "ok": true,
+      "typed": 14,
+      "value": "wireless mouse",
+      "url": "http://127.0.0.1:8911/index.html"
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "press",
+      "params": {
+       "key": "Enter"
+      }
+     },
+     "result": {
+      "ok": true,
+      "key": "Enter",
+      "action": "form_submit"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "snapshot",
+      "query": "M185"
+     },
+     "result": {
+      "ok": true,
+      "url": "http://127.0.0.1:8911/index.html",
+      "title": "BenchMart — Electronics",
+      "readyState": "complete",
+      "elements": "",
+      "element_meta": {
+       "offset": 0,
+       "returned": 0,
+       "total": 0,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "snapshot",
+      "query": "M185"
+     },
+     "result": {
+      "ok": true,
+      "url": "http://127.0.0.1:8911/results.html?q=wireless+mouse",
+      "title": "Search results — BenchMart",
+      "readyState": "complete",
+      "elements": "[1] a \"Logitech M185 Wireless Mouse\" href=\"http://127.0.0.1:8911/product.html?id=m185\"",
+      "element_meta": {
+       "offset": 0,
+       "returned": 1,
+       "total": 1,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "click",
+      "params": {
+       "target": 1
+      }
+     },
+     "result": {
+      "ok": true,
+      "clicked": true,
+      "tag": "a",
+      "text": "Logitech M185 Wireless Mouse",
+      "url": "http://127.0.0.1:8911/results.html?q=wireless+mouse"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "text",
+      "max_chars": 1500
+     },
+     "result": {
+      "ok": true,
+      "url": "http://127.0.0.1:8911/product.html?id=m185",
+      "title": "Logitech M185 Wireless Mouse — BenchMart",
+      "readyState": "complete",
+      "text": "Home · Deals · Keyboards · Mice · Newsletter · Help · Account · Cart (0)\nLogitech M185 Wireless Mouse\n\nPrice: $14.99\n\nShips in 1–2 business days.\n\nQuantity \n1\n2\n3\n Add to cart Save for later\nCustomers also viewed\nLogitech M330 Silent Wireless Mouse\nLogitech MX Master 3S Wireless Mouse\nRazer DeathAdder Wired Gaming Mouse\n\n© 2026 BenchMart. Free shipping over $50. 30-day returns.\n\nAbout Careers Privacy Terms Contact",
+      "text_meta": {
+       "offset": 0,
+       "total": 417,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    }
+   ],
+   "jev-harness": [
+    {
+     "name": "browse",
+     "arguments": {
+      "url": "http://127.0.0.1:8911/index.html",
+      "goal": "Search the store for wireless mouse, open the Logitech M185 product page and report its price."
+     },
+     "result": {
+      "status": "done",
+      "url": "http://127.0.0.1:8911/product.html?id=m185",
+      "title": "Logitech M185 Wireless Mouse — BenchMart",
+      "steps": [
+       "search_9 searchbox \"Search products\" <- \"wireless mouse\" p=0.95",
+       "click_12 link \"Logitech M185 Wireless Mouse\" p=1"
+      ],
+      "evidence": {
+       "exists": 0.96,
+       "lines": [
+        {
+         "line": "Price: $14.99",
+         "p": 0.99
+        }
+       ]
+      },
+      "jev": {
+       "calls": 4,
+       "input_tokens": 6797,
+       "ms": 880
+      },
+      "elapsed_ms": 1883
+     }
+    }
+   ]
+  },
+  "form": {
+   "dt-browser": [
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "navigate",
+      "params": {
+       "url": "http://127.0.0.1:8911/index.html"
+      }
+     },
+     "result": {
+      "tabId": 978952536,
+      "url": "http://127.0.0.1:8911/index.html",
+      "title": "BenchMart — Electronics",
+      "status": "complete"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {},
+     "result": {
+      "ok": true,
+      "url": "http://127.0.0.1:8911/index.html",
+      "title": "BenchMart — Electronics",
+      "readyState": "complete",
+      "text": "Home · Deals · Keyboards · Mice · Newsletter · Help · Account · Cart (0)\nBenchMart\n\nElectronics, accessories and more. Today's deals refresh at midnight.\n\nSearch\nPopular categories\nMice\nKeyboards\nHubs & docks\nMouse pads\nFeatured\nRazer DeathAdder Wired Gaming Mouse\nKeychron K2 Wireless Keyboard\nSteelSeries QcK Mouse Pad\nAnker 7-in-1 USB-C Hub\n\n© 2026 BenchMart. Free shipping over $50. 30-day returns.\n\nAbout Careers Privacy Terms Contact",
+      "text_meta": {
+       "offset": 0,
+       "total": 439,
+       "truncated": false,
+       "next_offset": null
+      },
+      "elements": "[1] a \"Home\" href=\"http://127.0.0.1:8911/index.html\"\n[2] a \"Deals\" href=\"http://127.0.0.1:8911/results.html?q=deals\"\n[3] a \"Keyboards\" href=\"http://127.0.0.1:8911/results.html?q=keyboard\"\n[4] a \"Mice\" href=\"http://127.0.0.1:8911/results.html?q=mouse\"\n[5] a \"Newsletter\" href=\"http://127.0.0.1:8911/newsletter.html\"\n[6] a \"Help\" href=\"http://127.0.0.1:8911/index.html#help\"\n[7] a \"Account\" href=\"http://127.0.0.1:8911/index.html#account\"\n[8] a \"Cart (0)\" href=\"http://127.0.0.1:8911/index.html#cart\"\n[9] h1 \"BenchMart\"\n[10] input \"Search products\" type=\"search\"\n[11] button \"Search\"\n[12] h2 \"Popular categories\"\n[13] a \"Mice\" href=\"http://127.0.0.1:8911/results.html?q=mouse\"\n[14] a \"Keyboards\" href=\"http://127.0.0.1:8911/results.html?q=keyboard\"\n[15] a \"Hubs & docks\" href=\"http://127.0.0.1:8911/results.html?q=hub\"\n[16] a \"Mouse pads\" href=\"http://127.0.0.1:8911/results.html?q=pad\"\n[17] h2 \"Featured\"\n[18] a \"Razer DeathAdder Wired Gaming Mouse\" href=\"http://127.0.0.1:8911/product.html?id=rz1\"\n[19] a \"Keychron K2 Wireless Keyboard\" href=\"http://127.0.0.1:8911/product.html?id=kb1\"\n[20] a \"SteelSeries QcK Mouse Pad\" href=\"http://127.0.0.1:8911/product.html?id=pad\"\n[21] a \"Anker 7-in-1 USB-C Hub\" href=\"http://127.0.0.1:8911/product.html?id=hub\"\n[22] a \"About\" href=\"http://127.0.0.1:8911/index.html#about\"\n[23] a \"Careers\" href=\"http://127.0.0.1:8911/index.html#careers\"\n[24] a \"Privacy\" href=\"http://127.0.0.1:8911/index.html#privacy\"\n[25] a \"Terms\" href=\"http://127.0.0.1:8911/index.html#terms\"\n[26] a \"Contact\" href=\"http://127.0.0.1:8911/index.html#contact\"",
+      "element_meta": {
+       "offset": 0,
+       "returned": 26,
+       "total": 26,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "click",
+      "params": {
+       "target": 5
+      }
+     },
+     "result": {
+      "ok": true,
+      "clicked": true,
+      "tag": "a",
+      "text": "Newsletter",
+      "url": "http://127.0.0.1:8911/index.html"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "snapshot"
+     },
+     "result": {
+      "ok": true,
+      "url": "http://127.0.0.1:8911/newsletter.html",
+      "title": "Newsletter — BenchMart",
+      "readyState": "complete",
+      "elements": "[1] a \"Home\" href=\"http://127.0.0.1:8911/index.html\"\n[2] a \"Deals\" href=\"http://127.0.0.1:8911/results.html?q=deals\"\n[3] a \"Keyboards\" href=\"http://127.0.0.1:8911/results.html?q=keyboard\"\n[4] a \"Mice\" href=\"http://127.0.0.1:8911/results.html?q=mouse\"\n[5] a \"Newsletter\" href=\"http://127.0.0.1:8911/newsletter.html\"\n[6] a \"Help\" href=\"http://127.0.0.1:8911/newsletter.html#help\"\n[7] a \"Account\" href=\"http://127.0.0.1:8911/newsletter.html#account\"\n[8] a \"Cart (0)\" href=\"http://127.0.0.1:8911/newsletter.html#cart\"\n[9] h1 \"Join the BenchMart newsletter\"\n[10] label \"Full name\"\n[11] input \"Full name\" id=\"name\" type=\"text\"\n[12] label \"Email address\"\n[13] input \"Email address\" id=\"email\" type=\"email\"\n[14] label \"How often? Choose… Daily Weekly Monthly\"\n[15] select \"How often? Choose… Daily Weekly Monthly\" id=\"freq\" type=\"select-one\"\n[16] label \"Include partner deals\"\n[17] input \"Include partner deals\" id=\"deals\" type=\"checkbox\" value=\"on\"\n[18] button \"Subscribe\"\n[19] a \"About\" href=\"http://127.0.0.1:8911/newsletter.html#about\"\n[20] a \"Careers\" href=\"http://127.0.0.1:8911/newsletter.html#careers\"\n[21] a \"Privacy\" href=\"http://127.0.0.1:8911/newsletter.html#privacy\"\n[22] a \"Terms\" href=\"http://127.0.0.1:8911/newsletter.html#terms\"\n[23] a \"Contact\" href=\"http://127.0.0.1:8911/newsletter.html#contact\"",
+      "element_meta": {
+       "offset": 0,
+       "returned": 23,
+       "total": 23,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "type",
+      "params": {
+       "target": 11,
+       "text": "Ada Lovelace"
+      }
+     },
+     "result": {
+      "ok": true,
+      "typed": 12,
+      "value": "Ada Lovelace",
+      "url": "http://127.0.0.1:8911/newsletter.html"
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "type",
+      "params": {
+       "target": 13,
+       "text": "ada@example.com"
+      }
+     },
+     "result": {
+      "ok": true,
+      "typed": 15,
+      "value": "ada@example.com",
+      "url": "http://127.0.0.1:8911/newsletter.html"
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "eval",
+      "params": {
+       "js": "(() => { const s = [...document.querySelectorAll('select')].find(x => x.closest('label')?.textContent.includes('How often')); s.value = 'Weekly'; s.dispatchEvent(new Event('change', {bubbles: true})); return s.value; })()"
+      }
+     },
+     "result": {
+      "ok": true,
+      "result": "Weekly"
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "click",
+      "params": {
+       "target": 17
+      }
+     },
+     "result": {
+      "ok": true,
+      "clicked": true,
+      "tag": "input",
+      "text": "",
+      "url": "http://127.0.0.1:8911/newsletter.html"
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "click",
+      "params": {
+       "target": 18
+      }
+     },
+     "result": {
+      "ok": true,
+      "clicked": true,
+      "tag": "button",
+      "text": "Subscribe",
+      "url": "http://127.0.0.1:8911/newsletter.html"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "text",
+      "max_chars": 1500
+     },
+     "result": {
+      "ok": true,
+      "url": "http://127.0.0.1:8911/newsletter.html",
+      "title": "Newsletter — BenchMart",
+      "readyState": "complete",
+      "text": "Home · Deals · Keyboards · Mice · Newsletter · Help · Account · Cart (0)\nJoin the BenchMart newsletter\n\nFull name \n\nEmail address \n\nHow often? \nChoose…\nDaily\nWeekly\nMonthly\n\n Include partner deals\n\nSubscribe\n\nSubscribed ada@example.com (Ada Lovelace) — Weekly digest with partner deals.\n\n© 2026 BenchMart. Free shipping over $50. 30-day returns.\n\nAbout Careers Privacy Terms Contact",
+      "text_meta": {
+       "offset": 0,
+       "total": 382,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    }
+   ],
+   "jev-harness": [
+    {
+     "name": "browse",
+     "arguments": {
+      "url": "http://127.0.0.1:8911/index.html",
+      "goal": "Subscribe to the newsletter as Ada Lovelace with email ada@example.com, weekly frequency, including partner deals."
+     },
+     "result": {
+      "status": "done",
+      "url": "http://127.0.0.1:8911/newsletter.html",
+      "title": "Newsletter — BenchMart",
+      "steps": [
+       "click_5 link \"Newsletter\" p=1",
+       "type_9 textbox \"Full name\" <- \"Ada Lovelace\" p=0.99",
+       "type_10 textbox \"Email address\" <- \"ada@example.com\" p=1",
+       "select_11 select \"How often?\" <- \"Weekly\" p=0.98",
+       "click_12 checkbox \"Include partner deals\" p=0.17",
+       "click_13 button \"Subscribe\" p=0.64"
+      ],
+      "evidence": {
+       "exists": 0.98,
+       "lines": [
+        {
+         "line": "Subscribed ada@example.com (Ada Lovelace) — Weekly digest with partner deals.",
+         "p": 1
+        }
+       ]
+      },
+      "jev": {
+       "calls": 8,
+       "input_tokens": 18074,
+       "ms": 1952
+      },
+      "elapsed_ms": 4181
+     }
+    }
+   ]
+  },
+  "wiki": {
+   "dt-browser": [
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "navigate",
+      "params": {
+       "url": "https://en.wikipedia.org/wiki/Main_Page"
+      }
+     },
+     "result": {
+      "tabId": 978952536,
+      "url": "https://en.wikipedia.org/wiki/Main_Page",
+      "title": "Wikipedia, the free encyclopedia",
+      "status": "complete"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {},
+     "result": {
+      "ok": true,
+      "url": "https://en.wikipedia.org/wiki/Main_Page",
+      "title": "Wikipedia, the free encyclopedia",
+      "readyState": "complete",
+      "text": "Jump to content\nMain menu\nSearch\nDonate\nCreate account\nLog in\nMain Page\nTalk\nRead\nView source\nView history\nTools\nWelcome to Wikipedia,\nthe free encyclopedia that anyone can edit.\n265,014 active editors7,243,180 articles in English\nFrom today's featured article\n\nMary Mallon (September 23, 1869 – November 11, 1938), dubbed Typhoid Mary, was an Irish-born cook who lived in the US and is believed to have infected up to 57 people with the bacteria that cause typhoid fever, with three confirmed deaths. Between 1897 and 1907, Mallon worked at several homes; residents at four of them contracted typhoid. In 1907, she was forcibly quarantined at Riverside Hospital, but was freed in 1910, promising not to work as a cook. A further outbreak at the Sloane Maternity Hospital, where she was working, resulted in 25 cases and two deaths in early 1915. She was again confined, remaining so until her death in 1938. Her nickname became a term for anyone who spreads disease. Mallon's case raises questions about the balance between individual liberty and public health. No other carrier of typhoid was confined for as long as she was. Her story has been reevaluated, particularly during outbreaks of HIV/AIDS, tuberculosis, and COVID-19. (Full article...)\n\nRecently featured: Alison FrantzEarly Netherlandish paintingMisti\nArchiveBy emailMore featured articlesAbout\nDid you know ...\nLotte Rakhat chocolate bar\n... that amendments to Kazakhstan's law on state symbols raised concerns over changes to the packaging of one of Lotte Rakhat's most popular products (pictured)?\n... that a promotion for the Jackie Robinson commemorative coins included a baseball card issued by the United States government?\n... that \"Candidatus Magnetoglobus multicellularis\", unlike almost all other known prokaryotes, spends its entire life cycle as a multicellular organism?\n... that Leona E. Prasse's 1972 Feininger catalogue, which involved the help of the subject's widow, was called an improvement over a previous Feininger book from 1959?\n... that the dinosaur that laid the eggs identified as Umbellaoolithus is unknown, but it ate plants?\n... that only a shoe and a backpack were found after Makan Nasiri was killed in the 2026 Minab school attack?\n... that a story in I Became the Main Role of a BL Drama was published as a script because there were not enough pages or time to include it as a full comic?\n... that \"Pistol Nell\" earned her nickname by helping to thwart a bank robbery?\n... that Billy Bragg ate Joe Hill's ashes?\nArchiveStart a new articleNominate an article\nIn the news\nTilcayo\nAn attack on a police complex in Kohat, Pakistan, leaves at least 31 people dead.\nThe tilcayo (pictured), a new species of tiger cat, is formally identified.\nFormer leader of Kosovo Hashim Thaçi is sentenced to 25 years in prison for war crimes during his leadership of the Kosovo Liberation Army.\nAt the Primetime Emmy Awards, Widow's Bay wins Outstanding Comedy Series, and The Pitt wins Outstanding Drama Series.\nOngoing: Iran war (Lebanon war)Russo-Ukrainian war timeline\nRecent deaths: Dolores SibongaAracy AmaralBonnie GreerPeter MaxChung Ho-yongWin Aung\nMore current eventsNominate an article\nOn this day\n\nSeptember 23: Celebrate Bisexuality Day\n\nU2 performing in Sarajevo\n1803 – Maratha troops were defeated by forces of the British East India Company at the Battle of Assaye, one of the decisive battles of the Second Anglo-Maratha War.\n1884 – The French steamship Arctique ran aground on the northern coast of Cape Virgenes in Argentina; gold was discovered during the rescue effort, triggering the Tierra del Fuego Gold Rush.\n1983 – Flying from Pakistan, Gulf Air Flight 771 was blown up by the Abu Nidal Organization while on approach over the United Arab Emirates (UAE), killing all 112 people on board.\n1997 – Irish rock band U2 performed in Sarajevo (pictured), the first major artist to hold a concert in the city since the end of the Bosnian War.\n2016 – Following a number of high-profile sexual assaults, major reforms were enacted to strengthen laws related to rape in Germany.\nEleonora Gonzaga (b. 1598)Émilie Gamelin (d. 1851)Omar Ali Saifuddien III (b. 1914)Ray Charles (b. 1930)\nMore anniversaries: September 22September 23September 24\nArchiveBy emailList of days of the yearAbout\nFrom today's featured list\nPalace of Assembly, Chandigarh\n\nThere are 117 constituencies of the Punjab Legislative Assembly, the unicameral legislature of Punjab, a state in North India. The seat of the Punjab Legislative Assembly is at Chandigarh, the state capital. It is housed within the Chandigarh Capitol Complex (building pictured), a World Heritage Site designed by Le Corbusier. The 117 members of the state legislative assembly are directly elected from single-seat constituencies and sit for a term of five years, unless it is dissolved early. Punjab is the nineteenth-largest state in India, and the fifteenth-most populous, with a population of 27.7 million in 2011. Thirty-four seats in the assembly are reserved for the Scheduled Castes (SC), which have been given reservation status since Indian independence, guaranteeing them political representation. (Full list...)\n\nRecently featured: Humphrey Bogart on stage, screen, radio, and televisionGlossary of sound laws in the Indo-European languagesCanadian National Skating Championships\nArchiveMore featured lists\nToday's featured video\n\n\n\nThe Adventures of Prince Achmed is a German animated fairy-tale film, written and directed by Lotte Reiniger, and released on 23 September 1926. Since two earlier Quirino Cristiani films are lost, it is the oldest surviving animated feature film. The plot is based on elements from several One Thousand and One Nights stories, such as \"Aladdin,\" \"Ahmed and Paribanou\", and \"The Ebony Horse\". The film features a silhouette-animation technique that Reiniger invented by manipulating cardboard cutouts and thin sheets of lead under a camera, similar to wayang shadow puppets. The original prints featured color tinti",
+      "text_meta": {
+       "offset": 0,
+       "total": 8723,
+       "truncated": true,
+       "next_offset": 6000
+      },
+      "elements": "[1] label \"Main menu\" id=\"vector-main-menu-dropdown-label\"\n[2] a href=\"https://en.wikipedia.org/wiki/Main_Page\"\n[3] a \"Search Wikipedia [f]\" href=\"https://en.wikipedia.org/wiki/Special:Search\"\n[4] a \"Donate\" href=\"https://donate.wikimedia.org/?wmf_source=donate&wmf_medium=sidebar&wmf_campaign=en.wikipedia.org&uselang=en\"\n[5] a \"You are encouraged to create an account and log in; however, it is not mandatory\" href=\"https://en.wikipedia.org/w/index.php?title=Special:CreateAccount&returnto=Main+Page\"\n[6] a \"You're encouraged to log in; however, it's not mandatory. [o]\" href=\"https://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Main+Page\"\n[7] a \"View the content page [c]\" href=\"https://en.wikipedia.org/wiki/Main_Page\"\n[8] a \"Discuss improvements to the content page [t]\" href=\"https://en.wikipedia.org/wiki/Talk:Main_Page\"\n[9] a \"Read\" href=\"https://en.wikipedia.org/wiki/Main_Page\"\n[10] a \"This page is protected. You can view its source [e]\" href=\"https://en.wikipedia.org/w/index.php?title=Main_Page&action=edit\"\n[11] a \"Past revisions of this page [h]\" href=\"https://en.wikipedia.org/w/index.php?title=Main_Page&action=history\"\n[12] label \"Tools\" id=\"vector-page-tools-dropdown-label\"\n[13] h1 \"Welcome to Wikipedia\" id=\"Welcome_to_Wikipedia\"\n[14] a \"Wikipedia\" id=\"mwBg\" href=\"https://en.wikipedia.org/wiki/Wikipedia\"\n[15] a \"Free content\" id=\"mwBw\" href=\"https://en.wikipedia.org/wiki/Free_content\"\n[16] a \"Help:Introduction to Wikipedia\" id=\"mwCA\" href=\"https://en.wikipedia.org/wiki/Help:Introduction_to_Wikipedia\"\n[17] a \"Special:Statistics\" id=\"mwCw\" href=\"https://en.wikipedia.org/wiki/Special:Statistics\"\n[18] a \"Special:Statistics\" id=\"mwDg\" href=\"https://en.wikipedia.org/wiki/Special:Statistics\"\n[19] a \"English language\" id=\"mwEA\" href=\"https://en.wikipedia.org/wiki/English_language\"\n[20] h2 \"From today's featured article\" id=\"mp-tfa-h2\"\n[21] a \"Mary Mallon\" href=\"https://en.wikipedia.org/wiki/File:Mary_Mallon,_aka_Typhoid_Mary.jpg\"\n[22] a \"Mary Mallon\" href=\"https://en.wikipedia.org/wiki/Mary_Mallon\"\n[23] a \"Bacteria\" href=\"https://en.wikipedia.org/wiki/Bacteria\"\n[24] a \"Typhoid fever\" href=\"https://en.wikipedia.org/wiki/Typhoid_fever\"\n[25] a \"Quarantine\" href=\"https://en.wikipedia.org/wiki/Quarantine\"\n[26] a \"Sloane Hospital for Women\" href=\"https://en.wikipedia.org/wiki/Sloane_Hospital_for_Women\"\n[27] a \"Public health\" href=\"https://en.wikipedia.org/wiki/Public_health\"\n[28] a \"HIV/AIDS\" href=\"https://en.wikipedia.org/wiki/HIV/AIDS\"\n[29] a \"Tuberculosis\" href=\"https://en.wikipedia.org/wiki/Tuberculosis\"\n[30] a \"COVID-19\" href=\"https://en.wikipedia.org/wiki/COVID-19\"\n[31] a \"Mary Mallon\" href=\"https://en.wikipedia.org/wiki/Mary_Mallon\"\n[32] a \"Alison Frantz\" href=\"https://en.wikipedia.org/wiki/Alison_Frantz\"\n[33] a \"Early Netherlandish painting\" href=\"https://en.wikipedia.org/wiki/Early_Netherlandish_painting\"\n[34] a \"Misti\" href=\"https://en.wikipedia.org/wiki/Misti\"\n[35] a \"Wikipedia:Today's featured article/September 2026\" href=\"https://en.wikipedia.org/wiki/Wikipedia:Today's_featured_article/September_2026\"\n[36] a \"mail:daily-article-l\" href=\"https://lists.wikimedia.org/postorius/lists/daily-article-l.lists.wikimedia.org/\"\n[37] a \"Wikipedia:Featured articles (linked from TFAfooter)\" href=\"https://en.wikipedia.org/wiki/Wikipedia:Featured_articles_(linked_from_TFAfooter)\"\n[38] a \"Wikipedia:About Today's featured article\" href=\"https://en.wikipedia.org/wiki/Wikipedia:About_Today's_featured_article\"\n[39] h2 \"Did you know ...\" id=\"mp-dyk-h2\" offscreen\n[40] a \"Lotte Rakhat chocolate bar\" href=\"https://en.wikipedia.org/wiki/File:Rakhat_Kazakhstan_dark_chocolate_bar_(square_crop).jpg\" offscreen\n[41] a \"Lotte Rakhat\" href=\"https://en.wikipedia.org/wiki/Lotte_Rakhat\" offscreen\n[42] a \"Jackie Robinson commemorative coins\" href=\"https://en.wikipedia.org/wiki/Jackie_Robinson_commemorative_coins\" offscreen\n[43] a \"Baseball card\" href=\"https://en.wikipedia.org/wiki/Baseball_card\" offscreen\n[44] a \"Candidatus Magnetoglobus multicellularis\" href=\"https://en.wikipedia.org/wiki/Candidatus_Magnetoglobus_multicellularis\" offscreen\n[45] a \"Prokaryote\" href=\"https://en.wikipedia.org/wiki/Prokaryote\" offscreen\n[46] a \"Leona E. Prasse\" href=\"https://en.wikipedia.org/wiki/Leona_E._Prasse\" offscreen\n[47] a \"Lyonel Feininger: A Definitive Catalogue of His Graphic Work\" href=\"https://en.wikipedia.org/wiki/Lyonel_Feininger:_A_Definitive_Catalogue_of_His_Graphic_Work\" offscreen\n[48] a \"Julia Feininger\" href=\"https://en.wikipedia.org/wiki/Julia_Feininger\" offscreen\n[49] a \"Lyonel Feininger (Hess book)\" href=\"https://en.wikipedia.org/wiki/Lyonel_Feininger_(Hess_book)\" offscreen\n[50] a \"Umbellaoolithus\" href=\"https://en.wikipedia.org/wiki/Umbellaoolithus\" offscreen\n[51] a \"Makan Nasiri\" href=\"https://en.wikipedia.org/wiki/Makan_Nasiri\" offscreen\n[52] a \"2026 Minab school attack\" href=\"https://en.wikipedia.org/wiki/2026_Minab_school_attack\" offscreen\n[53] a \"I Became the Main Role of a BL Drama\" href=\"https://en.wikipedia.org/wiki/I_Became_the_Main_Role_of_a_BL_Drama\" offscreen\n[54] a \"Script (comics)\" href=\"https://en.wikipedia.org/wiki/Script_(comics)\" offscreen\n[55] a \"Nell W. Walker\" href=\"https://en.wikipedia.org/wiki/Nell_W._Walker\" offscreen\n[56] a \"Billy Bragg\" href=\"https://en.wikipedia.org/wiki/Billy_Bragg\" offscreen\n[57] a \"Joe Hill's ashes\" href=\"https://en.wikipedia.org/wiki/Joe_Hill's_ashes\" offscreen\n[58] a \"Wikipedia:Did you know archive\" href=\"https://en.wikipedia.org/wiki/Wikipedia:Did_you_know_archive\" offscreen\n[59] a \"Help:Your first article\" href=\"https://en.wikipedia.org/wiki/Help:Your_first_article\" offscreen\n[60] a \"Template talk:Did you know\" href=\"https://en.wikipedia.org/wiki/Template_talk:Did_you_know\" offscreen",
+      "element_meta": {
+       "offset": 0,
+       "returned": 60,
+       "total": 279,
+       "truncated": true,
+       "next_offset": 60
+      }
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "click",
+      "params": {
+       "target": 3
+      }
+     },
+     "result": {
+      "ok": true,
+      "clicked": true,
+      "tag": "a",
+      "text": "Search",
+      "url": "https://en.wikipedia.org/wiki/Main_Page"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "snapshot",
+      "query": "Search"
+     },
+     "result": {
+      "ok": true,
+      "url": "https://en.wikipedia.org/wiki/Main_Page",
+      "title": "Wikipedia, the free encyclopedia",
+      "readyState": "complete",
+      "elements": "[1] a \"Search Wikipedia [f]\" href=\"https://en.wikipedia.org/wiki/Special:Search\"",
+      "element_meta": {
+       "offset": 0,
+       "returned": 1,
+       "total": 1,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "snapshot",
+      "query": "Search"
+     },
+     "result": {
+      "ok": true,
+      "url": "https://en.wikipedia.org/wiki/Special:Search",
+      "title": "Search - Wikipedia",
+      "readyState": "complete",
+      "elements": "[1] a \"Search Wikipedia [f]\" href=\"https://en.wikipedia.org/wiki/Special:Search\"\n[2] a \"You are encouraged to create an account and log in; however, it is not mandatory\" href=\"https://en.wikipedia.org/w/index.php?title=Special:CreateAccount&returnto=Special%3ASearch\"\n[3] a \"You're encouraged to log in; however, it's not mandatory. [o]\" href=\"https://en.wikipedia.org/w/index.php?title=Special:UserLogin&returnto=Special%3ASearch\"\n[4] h1 \"Search\" id=\"firstHeading\"\n[5] a \"Help\" href=\"https://en.wikipedia.org/wiki/Help:Searching\"\n[6] input \"Search Wikipedia\" id=\"ooui-php-1\" type=\"search\"\n[7] button \"Search\"\n[8] a \"Mobile view\" href=\"https://en.wikipedia.org/w/index.php?title=Special:Search&mobileaction=toggle_view_mobile\"",
+      "element_meta": {
+       "offset": 0,
+       "returned": 8,
+       "total": 8,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "type",
+      "params": {
+       "target": 6,
+       "text": "Grace Hopper"
+      }
+     },
+     "result": {
+      "ok": true,
+      "typed": 12,
+      "value": "Grace Hopper",
+      "url": "https://en.wikipedia.org/wiki/Special:Search"
+     }
+    },
+    {
+     "name": "browser_do",
+     "arguments": {
+      "command": "press",
+      "params": {
+       "key": "Enter"
+      }
+     },
+     "result": {
+      "ok": true,
+      "key": "Enter",
+      "action": "form_submit"
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "text"
+     },
+     "result": {
+      "ok": true,
+      "url": "https://en.wikipedia.org/wiki/Special:Search",
+      "title": "Search - Wikipedia",
+      "readyState": "complete",
+      "text": "Jump to content\nMain menu\nSearch\nDonate\nCreate account\nLog in\nSearch\nHelp\nTools\n\tSearch\nPrivacy policy\nAbout Wikipedia\nDisclaimers\nContact Wikipedia\nLegal & safety contacts\nCode of Conduct\nDevelopers\nStatistics\nCookie statement\nMobile view",
+      "text_meta": {
+       "offset": 0,
+       "total": 239,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    },
+    {
+     "name": "browser_read",
+     "arguments": {
+      "mode": "text"
+     },
+     "result": {
+      "ok": true,
+      "url": "https://en.wikipedia.org/w/index.php?search=Grace+Hopper&title=Special%3ASearch&profile=default&fulltext=1",
+      "title": "Grace Hopper - Search results - Wikipedia",
+      "readyState": "complete",
+      "text": "Jump to content\nMain menu\nSearch\nDonate\nCreate account\nLog in\nSearch results\nHelp\nTools\n\tSearch\nResults 1 – 20 of 3,966\n20 items\n50 items\n100 items\n250 items\n500 items\nGrace Hopper\nGrace Brewster Hopper (née Murray; December 9, 1906 – January 1, 1992) was an American computer scientist, mathematician, and United States Navy rear...\n76 KB (7,166 words) – 17:40, 22 September 2026\nGrace Hopper Celebration of Women in Computing\nThe Grace Hopper Celebration of Women in Computing (GHC) is a series of conferences designed to bring the research and career interests of women in computing...\n25 KB (2,032 words) – 15:00, 28 August 2026\nHopper (microarchitecture)\nNamed for computer scientist and United States Navy rear admiral Grace Hopper, the Hopper architecture was leaked in November 2019 and officially revealed...\n21 KB (2,141 words) – 18:46, 22 July 2026\nGrace Hopper College\nGrace Hopper College is a residential college of Yale University, opened in 1933 as one of the original eight undergraduate residential colleges endowed...\n32 KB (3,330 words) – 03:46, 26 July 2026\nGrace Murray Hopper Award\nThe ACM Grace Murray Hopper Award is an annual prize given by the Association for Computing Machinery (ACM) for a single, significant technical or service...\n7 KB (589 words) – 16:53, 31 May 2026\nUSS Hopper\nStates Navy, named for the pioneering computer scientist Rear Admiral Grace Hopper. Hopper is only the second US Navy warship to be named for a woman from the...\n10 KB (972 words) – 11:43, 13 September 2026\nAnitaB.org (section Grace Hopper Celebration of Women in Computing Conference)\nadvance women in technology. The institute's most prominent program is the Grace Hopper Celebration of Women in Computing Conference, the world's largest gathering...\n27 KB (2,344 words) – 17:33, 1 September 2026\nGrace Hopper (submarine communications cable)\nGrace Hopper is a private transatlantic communications cable that connects the United States of America (New York) with the UK (Bude) and Spain (Bilbao)...\n8 KB (712 words) – 08:32, 24 July 2024\nAlps (supercomputer)\nthe LLM GPT-3 from OpenAI in two days. This supercomputer is based on Grace Hopper GH200 integrated circuits (ICs) from Nvidia and achieves a performance...\n11 KB (1,083 words) – 16:47, 7 September 2026\nCOBOL\nwas partly based on the programming language FLOW-MATIC, designed by Grace Hopper. It was created as part of a US Department of Defense effort to create...\n130 KB (14,661 words) – 11:07, 17 September 2026\nGrace Murray Hopper Park\n86111; -77.06333 Grace Murray Hopper Park is a small memorial park in Arlington, Virginia. The park is named in honor of Grace Hopper, a computer scientist...\n1 KB (115 words) – 16:03, 7 June 2026\nMelissa Pierce (section Born with Curiosity - The Grace Hopper Story)\nPierce is currently producing a documentary about Grace Hopper, \"Born with Curiosity - The Grace Hopper Story.\" Life in Perpetual Beta was a 2010 documentary...\n6 KB (632 words) – 04:29, 10 March 2026\nAnita Borg (section Grace Hopper Celebration of Women in Computing)\ntechnology. She founded the Institute for Women and Technology and the Grace Hopper Celebration of Women in Computing. Borg was born Anita Borg Naffz in...\n15 KB (1,448 words) – 23:16, 30 August 2026\nFLOW-MATIC\nUNIVAC I at Remington Rand under Grace Hopper from 1955 to 1959, and helped shape the development of COBOL. Hopper had found that business data processing...\n8 KB (951 words) – 15:59, 29 April 2026\nJupiter (supercomputer)\nJune 2025. It is based on a modular architecture featuring NVIDIA GH200 Grace Hopper Superchips and is recognized as Europe's fastest supercomputer, ranking...\n11 KB (853 words) – 21:07, 8 September 2026\nLucille Ball\nLucy and her grandfather. Reusing the line he had first given to Hedda Hopper in an interview, he quipped: The only thing red about Lucy is her hair,...\n106 KB (10,499 words) – 05:40, 19 September 2026\nCODASYL\nGrace Hopper sent a memo to the short-range committee reiterating Sperry Rand's efforts to create a language based on English. In 1980, Grace Hopper commented...\n32 KB (4,027 words) – 19:40, 10 August 2026\nTelle Whitney (section Founding of the Grace Hopper Celebration of Women in Computing)\nand Technology. A computer scientist by training, she cofounded the Grace Hopper Celebration of Women in Computing with Anita Borg in 1994 and joined...\n11 KB (1,023 words) – 14:42, 2 September 2026\nKatherine Johnson\nMarie Majella Berg John-Geline MacDonald Bowman Benita Fitzgerald-Brown Grace Hopper Mary Tyler Freeman Cheek McClenahan G. Anne Richardson Mary Virginia...\n66 KB (5,573 words) – 18:07, 26 August 2026\nHarvard Mark II\nNaval Proving Ground Dahlgren. Computer pioneers Edmund Berkeley and Grace Hopper worked together under Aiken to build and program the Mark II. The contract...\n7 KB (766 words) – 05:43, 6 September 2026\nTexts from Wikisource\nMcClure's Magazine/Volume 24\nNeed of Money (p.80): Robert Loveman - Yesterday Ran Roses (p.81): James Hopper - The Passing of the Vet (p.90): M. H. Carter - The Parent (p.101): W. Henry\nSee all results\nQuotes from Wikiquote\nGrace Hopper\nRear Admiral Grace Murray Hopper (9 December 1906 – 1 January 1992) was a U.S. Naval officer, and an early computer programmer. She was the developer\nSee all results\nTextbooks from Wikibooks\nFree Knowledge Culture Calendar/June 9\nToday in 1994 the first Grace Hopper Celebration of Women in Computing conference started. It is the largest gathering of women in Information Technology\nSee all results\n20 items\n50 items\n100 items\n250 items\n500 items\nPrivacy policy\nAbout Wikipedia\nDisclaimers\nContact Wikipedia\nLegal & safety contacts\nCode of Conduct\nDevelopers\nStatistics\nCookie statement\nMobile view",
+      "text_meta": {
+       "offset": 0,
+       "total": 5696,
+       "truncated": false,
+       "next_offset": null
+      }
+     }
+    }
+   ],
+   "jev-harness": [
+    {
+     "name": "browse",
+     "arguments": {
+      "url": "https://en.wikipedia.org/wiki/Main_Page",
+      "goal": "Search Wikipedia for Grace Hopper and report the year she was born."
+     },
+     "result": {
+      "status": "done",
+      "url": "https://en.wikipedia.org/wiki/Grace_Hopper",
+      "title": "Grace Hopper - Wikipedia",
+      "steps": [
+       "search_2 searchbox \"Search Wikipedia\" <- \"Grace Hopper\" p=0.97"
+      ],
+      "evidence": {
+       "exists": 0.98,
+       "lines": [
+        {
+         "line": "Grace Brewster Hopper (née Murray; December 9, 1906 – January 1, 1992) was an American computer scientist, mathematician, and United States Navy rear admiral.[1] She was a pioneer of computer programming. Hopper was the first to devise the theory of machine-independent programming languages, and used this theory to develop the FLOW-MATIC programming language and COBOL, an early high-level programm",
+         "p": 0.96
+        }
+       ]
+      },
+      "jev": {
+       "calls": 3,
+       "input_tokens": 30592,
+       "ms": 852
+      },
+      "elapsed_ms": 2047
+     }
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Model-backed editor fixture</title>
+<style>body { font: 16px system-ui; max-width: 760px; margin: 32px auto; } #editorHost { border: 1px solid #777; } label { display: block; margin: 16px 0; }</style>
+<script type="importmap">
+{"imports": {
+  "@codemirror/view": "/editor-modules/@codemirror/view",
+  "@codemirror/state": "/editor-modules/@codemirror/state",
+  "@marijn/find-cluster-break": "/editor-modules/@marijn/find-cluster-break",
+  "crelt": "/editor-modules/crelt",
+  "style-mod": "/editor-modules/style-mod",
+  "w3c-keyname": "/editor-modules/w3c-keyname"
+}}
+</script></head><body>
+<h1>Model-backed editor fixture</h1>
+<div id="editorHost"></div>
+<label>Decoy field<input id="decoy" value="Leave this unchanged"></label>
+<button id="save">Save model document</button>
+<p id="status" role="status">Not saved</p>
+<script type="module">
+  import { EditorView, keymap } from '@codemirror/view';
+  const key = 'dt-browser-model-editor', status = document.querySelector('#status');
+  let record = null;
+  try { record = JSON.parse(localStorage.getItem(key)); }
+  catch { status.textContent = 'Could not restore saved document'; }
+  // CodeMirror's document API is the source of truth: https://codemirror.net/docs/ref/#view.EditorView.state
+  window.modelEditor = new EditorView({
+    doc: record?.text ?? '', parent: document.querySelector('#editorHost'),
+    extensions: [
+      EditorView.contentAttributes.of({ 'aria-label': 'Model editor' }),
+      EditorView.theme({ '&': { height: '160px' }, '.cm-scroller': { overflow: 'auto' } }),
+      // Select the full model, including lines outside the rendered viewport.
+      keymap.of([{ key: 'Mod-a', run: (view) => { view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } }); return true; } }]),
+    ],
+  });
+  if (record) status.textContent = `Saved revision ${record.revision}`;
+  document.querySelector('#save').onclick = async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true; status.textContent = 'Saving…';
+    const next = { text: modelEditor.state.doc.toString(), revision: (record?.revision ?? 0) + 1 };
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    try { localStorage.setItem(key, JSON.stringify(next)); record = next; status.textContent = `Saved revision ${record.revision}`; }
+    catch { status.textContent = 'Save failed'; }
+    finally { button.disabled = false; }
+  };
+</script></body></html>
