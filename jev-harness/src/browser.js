@@ -748,9 +748,10 @@ export class Tab {
       const [sx, sy] = await this.evaluate("[scrollX, scrollY]");
       try { hit = await this.cdp.send("DOM.getNodeForLocation", { x: Math.round(r.x + sx), y: Math.round(r.y + sy) }); }
       catch { hit = null; }
-      // A point that resolves to nothing means the element is outside the viewport, not that the
-      // frame died: scrollIntoView can leave an oversized or pinned frame scrolled past.
-      r.covered ||= !!hit && hit.backendNodeId !== o.owner;
+      // A point that resolves to nothing means it could not be verified in the viewport, not that the
+      // frame died. Treat that as covered so the caller takes the synthetic-click path: a real mouse
+      // event at coordinates nothing was found at would silently miss.
+      r.covered ||= !hit || hit.backendNodeId !== o.owner;
     }
     return r;
   }
