@@ -263,6 +263,8 @@ function chromeProfile() {
 
 // How long a launch is allowed to be "in progress" before another caller may retry it.
 const LAUNCH_LOCK_MS = 20000;
+// PID of the Chrome this process launched, or null when it merely attached to a running one.
+let chromePid = null;
 
 function launchLockAge() {
   try { return Date.now() - statSync(join(chromeProfile(), "jev-launch.lock")).mtimeMs; } catch { return Infinity; }
@@ -293,7 +295,14 @@ export async function ensureChrome() {
   // spawn opens ANOTHER WINDOW and the debugging port never comes up — one night of browser
   // tool calls left ~50 windows. Launch once under a lock; everyone else waits for that one.
   for (let attempt = 0; attempt < 4; attempt++) {
-    if (takeLaunchLock()) spawn(chromePath(), args, { detached: true, stdio: "ignore" }).unref();
+    if (takeLaunchLock()) {
+      const child = spawn(chromePath(), args, { detached: true, stdio: "ignore" });
+      child.unref();
+      // Recorded only while this process is the launcher: the other MCP servers sharing this Chrome
+      // must not kill it, and a PID reused by a later run must not be killed either (reclaimChrome
+      // checks the command line names our profile).
+      chromePid = child.pid;
+    }
     for (let i = 0; i < 20; i++) {
       if (await alive()) return;
       await sleep(250);
@@ -305,6 +314,34 @@ export async function ensureChrome() {
 async function pageIds() {
   const list = await (await fetch(`${HTTP}/json/list`)).json();
   return list.filter((t) => t.type === "page");
+}
+
+// Every harness process in a Chrome profile shares one browser on purpose, so a tab close must not
+// take Chrome from another agent mid-run, and a fresh profile always has about:blank plus background
+// roots, so an empty /json/list is not the signal. Track the tabs this process holds instead: Chrome
+// is reclaimed only when this process opened some and has closed them all. Counting a Set rather than
+// a number keeps a popup adopted through attach() from leaving the count short by one.
+const liveTabs = new Set();
+async function reclaimChrome() {
+  if (!chromePid || liveTabs.size > 0) return;
+  const pid = chromePid;
+  chromePid = null;
+  try {
+    if (process.platform === "win32") {
+      const { execFile } = await import("node:child_process");
+      // The profile travels in the environment: interpolating a Windows path into a -Command string
+      // loses it to two layers of quoting, and a false mismatch means Chrome is never reclaimed.
+      // Matched against the whole command line rather than a PID lookup, because Win32_Process
+      // reports some Chrome roots with an empty CommandLine.
+      await new Promise((done) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
+        "$c = Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | " +
+        "Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($env:DTB_PROFILE, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and $_.CommandLine -notlike '*--type=*' }; " +
+        "$c | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+      ], { windowsHide: true, env: { ...process.env, DTB_PROFILE: chromeProfile() } }, () => done()));
+    } else {
+      try { process.kill(pid, "SIGTERM"); } catch {}
+    }
+  } catch {}
 }
 
 // /json/list has no openerId; the browser-level Target domain does.
@@ -439,7 +476,9 @@ export class Tab {
     if (BRIDGE) return Tab.attach(bridgeTarget(await (await bridge()).command("cdp_open", url ? { url } : {}, 20000)));
     await ensureChrome();
     const target = await (await fetch(`${HTTP}/json/new?about:blank`, { method: "PUT" })).json();
-    return Tab.attach(target);
+    const tab = await Tab.attach(target);
+    liveTabs.add(tab);
+    return tab;
   }
   static async attach(target) {
     const tab = new Tab();
@@ -513,6 +552,7 @@ export class Tab {
     const r = await this.cdp.send("Runtime.evaluate", { expression: guardedExpression(expression), returnByValue: true, awaitPromise: true }, 15000, session);
     if (r.exceptionDetails) {
       const message = r.exceptionDetails.exception?.description?.split("\n")[0] || "page script error";
+      if (message.includes("JEV_STALE_ELEMENT")) throw new StalePage("element document changed or frame detached; re-observe");
       throw message.includes("outside JEV_ALLOWED_ORIGINS") ? new OriginBlocked(message) : new Error(message);
     }
     return r.result.value;
@@ -596,7 +636,7 @@ export class Tab {
     this.snap = page.snap;
     this.elements = page.elements; // what the caller was shown: `act` resolves indices against it
     this.lines = page.lines; this.scrollPos = page.scroll; this.url = page.url; // `act` reports what changed
-    this.targets = page.elements.map((e) => ({ session: null, local: e.i }));
+    this.targets = page.elements.map((e) => ({ session: null, local: e.i, snap: page.snap }));
     // Cross-origin frames run in their own renderer (site isolation): snapshot each through its CDP
     // session and append its elements and text, with visibility judged in the top viewport.
     for (const session of this.frames.keys()) {
@@ -605,7 +645,7 @@ export class Tab {
       try { o = await this.frameOrigin(session); if (o.width < 20 || o.height < 20) continue; sub = await this.evaluate(SNAPSHOT, session); } catch { continue; }
       if (!originOk(sub.url)) continue;
       for (const e of sub.elements.slice(0, 800 - page.elements.length)) {
-        this.targets.push({ session, local: e.i });
+        this.targets.push({ session, local: e.i, snap: sub.snap, frame: this.frames.get(session) });
         e.i = this.targets.length;
         e.frame = sub.url;
         if (o.y + o.height < 0 || o.y > o.vh || o.x + o.width < 0 || o.x > o.vw) e.offscreen = true;
@@ -620,8 +660,43 @@ export class Tab {
   target(i) {
     const t = this.targets?.[i - 1];
     if (!t) throw new StalePage(`element ${i} is not on the current page; re-observe`);
-    if (t.session && !this.frames.has(t.session)) throw new StalePage(`the frame holding element ${i} is gone; re-observe`);
+    for (let session = t.session; session;) {
+      const frame = this.frames.get(session);
+      if (!frame || (session === t.session && frame !== t.frame)) throw new StalePage(`the frame holding element ${i} is gone; re-observe`);
+      session = frame.parent;
+    }
     return t;
+  }
+
+  // Validate in the same evaluation as the access: an old iframe document can retain connected nodes.
+  elementExpression(i, expression) {
+    const { local, snap } = this.target(i);
+    return `(() => {
+      const el = window.__jev?.[${local - 1}];
+      if (window.__jevSnap !== ${JSON.stringify(snap)} || !el?.isConnected) throw new Error('JEV_STALE_ELEMENT');
+      for (let d = el.ownerDocument; d !== document;) {
+        const owner = d.defaultView?.frameElement;
+        if (!owner?.isConnected || owner.contentDocument !== d) throw new Error('JEV_STALE_ELEMENT');
+        d = owner.ownerDocument;
+      }
+      return (${expression});
+    })()`;
+  }
+
+  async evaluateElement(i, expression) {
+    return this.evaluate(this.elementExpression(i, expression), this.target(i).session);
+  }
+
+  async restoreSnapshot(previous) {
+    if (!previous.snap || await this.evaluate("window.__jevSnap").catch(() => null) !== previous.snap) return;
+    const sessions = new Map([...this.frames].map(([session, frame]) => [frame.targetId, session]));
+    this.targets = previous.targets.map((target) => {
+      if (!target.session) return target;
+      const session = sessions.get(target.frame?.targetId);
+      // Keep missing targets stale; never substitute a frame by URL or its position in the page.
+      return session ? { ...target, session, frame: this.frames.get(session) } : target;
+    });
+    this.snap = previous.snap; this.elements = previous.elements;
   }
 
   // Top-viewport position of a cross-origin frame's content box. Its <iframe> owner lives in the parent
@@ -640,8 +715,8 @@ export class Tab {
 
   // Scroll the element into view and return its centre, refusing when another element covers it.
   async locate(i) {
-    const { session, local } = this.target(i);
-    const r = await this.evaluate(`(() => { const el = window.__jev?.[${local - 1}]; if (!el || !el.isConnected) return null;
+    const { session } = this.target(i);
+    const r = await this.evaluateElement(i, `(() => {
       el.scrollIntoView({ block: 'center', inline: 'nearest' });
       // An empty EditContext has no width; click its rendered parent surface instead.
       const surface = el.editContext && el.parentElement && el.getBoundingClientRect().width < 2 ? el.parentElement : el;
@@ -660,71 +735,79 @@ export class Tab {
         outer = root.host || root.defaultView?.frameElement; if (!outer) break;
       }
       if (outer && outer !== el) { const hit = document.elementFromPoint(X, Y); covered ||= !hit || !(hit === outer || outer.contains(hit)); }
-      return { x: X, y: Y, covered, editContext: !!el.editContext }; })()`, session).catch(() => null);
-    if (!r) throw new StalePage(`element ${i} is gone; re-observe`);
+      return { x: X, y: Y, covered, editContext: !!el.editContext }; })()`);
     if (session) {
       // Same check one level up for a cross-origin frame: the page must hit the frame's <iframe>.
       let o, hit;
-      try { o = await this.frameOrigin(session); hit = await this.cdp.send("DOM.getNodeForLocation", { x: Math.round(r.x + o.x), y: Math.round(r.y + o.y) }); }
-      catch { throw new StalePage(`the frame holding element ${i} moved or closed; re-observe`); }
+      try { o = await this.frameOrigin(session); }
+      catch (error) { throw new StalePage(`the frame holding element ${i} is gone; re-observe`, { cause: error }); }
       r.x += o.x; r.y += o.y;
-      r.covered ||= hit.backendNodeId !== o.owner;
+      // DOM.getBoxModel reports viewport coordinates; DOM.getNodeForLocation reads document ones and
+      // refuses a point outside the viewport. Frame origins are captured after scrollIntoView, so add
+      // the scroll to query where the element actually sits in the document.
+      const [sx, sy] = await this.evaluate("[scrollX, scrollY]");
+      try { hit = await this.cdp.send("DOM.getNodeForLocation", { x: Math.round(r.x + sx), y: Math.round(r.y + sy) }); }
+      catch { hit = null; }
+      // A point that resolves to nothing means the element is outside the viewport, not that the
+      // frame died: scrollIntoView can leave an oversized or pinned frame scrolled past.
+      r.covered ||= !!hit && hit.backendNodeId !== o.owner;
     }
     return r;
   }
 
   async click(i) {
     const { x, y, covered, editContext } = await this.locate(i);
-    if (covered) {
-      const { session, local } = this.target(i);
-      const ok = await this.evaluate(`!!window.__jev?.[${local - 1}]?.click?.() || !!window.__jev?.[${local - 1}]`, session).catch(() => false);
-      if (!ok) throw new StalePage(`element ${i} is gone; re-observe`);
-      return;
-    }
-    await this.assertAllowed();
-    for (const type of ["mouseMoved", "mousePressed", "mouseReleased"])
-      await this.cdp.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
-    // Background relay tabs can receive the surface click without focusing its EditContext.
-    if (editContext) {
-      const { session, local } = this.target(i);
-      await this.evaluate(`window.__jev?.[${local - 1}]?.focus()`, session);
+    try {
+      if (covered) { await this.evaluateElement(i, "el.click?.()"); return; }
+      await this.assertAllowed();
+      for (const type of ["mouseMoved", "mousePressed", "mouseReleased"])
+        await this.cdp.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount: 1 });
+      // Background relay tabs can receive the surface click without focusing its EditContext.
+      if (editContext) await this.evaluateElement(i, "el.focus()");
+    } catch (error) {
+      throw error instanceof StalePage ? new Error("clicked element changed before focus could be verified; click may already have happened; re-observe before acting again", { cause: error }) : error;
     }
   }
 
   async type(i, text, submit = false) {
-    const { session, local } = this.target(i);
+    const { session } = this.target(i);
     // A field in a cross-origin frame gets focus by a real click: el.focus() alone leaves the
     // keyboard on the top frame, and insertText goes wherever the keyboard is.
-    if (session) {
-      await this.click(i);
-      // A covered frame field falls back to el.click(), which does not move the keyboard into the
-      // frame: typing now would land in the top page (a stored password in the wrong field).
-      const focused = await this.evaluate(`document.hasFocus() && document.activeElement === window.__jev?.[${local - 1}]`, session).catch(() => false);
-      if (!focused) throw new StalePage(`could not focus element ${i} inside its frame; re-observe`);
-    } else await this.locate(i);
-    // Clear via the native value setter so framework-controlled inputs (React) see the change; the
-    // prototype comes from the element's own window, which differs inside a frame.
-    // A focus trap or script can move focus elsewhere; insertText would then type there (a stored
-    // password into a visible field), so the field must hold focus in its own tree before any text.
-    const focused = await this.evaluate(`(() => { const el = window.__jev[${local - 1}]; el.focus(); const w = el.ownerDocument.defaultView;
-      if (el.getRootNode().activeElement !== el) return false;
-      if (el.isContentEditable) { el.ownerDocument.getSelection().selectAllChildren(el); el.ownerDocument.execCommand('delete'); return el.getRootNode().activeElement === el; }
-      const proto = el.tagName === 'TEXTAREA' ? w.HTMLTextAreaElement.prototype : w.HTMLInputElement.prototype;
-      Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, '');
-      el.dispatchEvent(new Event('input', { bubbles: true })); return el.getRootNode().activeElement === el; })()`, session);
-    if (!focused) throw new StalePage(`element ${i} did not keep focus (another element took it); nothing was typed`);
-    await this.insert(text);
-    await this.evaluate(`window.__jev[${local - 1}]?.dispatchEvent(new Event('change', { bubbles: true }))`, session);
-    if (submit) await this.key("Enter");
+    if (session) await this.click(i); else await this.locate(i);
+    // Click, focus and clear can run page handlers: no stale-action retry is safe past this point.
+    try {
+      if (session) {
+        // A covered field's synthetic click does not transfer keyboard focus into its frame.
+        const focused = await this.evaluateElement(i, "document.hasFocus() && document.activeElement === el");
+        if (!focused) throw new Error(`could not focus element ${i} inside its frame after click; nothing was typed; re-observe before acting again`);
+      }
+      // The native setter preserves framework events; verify focus before and after clearing.
+      const focused = await this.evaluateElement(i, `(() => { el.focus(); const w = el.ownerDocument.defaultView;
+        if (el.getRootNode().activeElement !== el) return false;
+        if (el.isContentEditable) { el.ownerDocument.getSelection().selectAllChildren(el); el.ownerDocument.execCommand('delete'); return el.getRootNode().activeElement === el; }
+        const proto = el.tagName === 'TEXTAREA' ? w.HTMLTextAreaElement.prototype : w.HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, '');
+        el.dispatchEvent(new Event('input', { bubbles: true })); return el.getRootNode().activeElement === el; })()`);
+      if (!focused) throw new Error(`element ${i} did not keep focus; its value may have been cleared; nothing was typed; re-observe before acting again`);
+      await this.insert(text);
+      await this.evaluateElement(i, "el.dispatchEvent(new Event('change', { bubbles: true }))");
+      if (submit) await this.key("Enter");
+    } catch (error) {
+      throw error instanceof StalePage ? new Error("typing interrupted after click or focus; text may already be entered; re-observe before acting again", { cause: error }) : error;
+    }
   }
 
   // Local files into an <input type=file>, the way a file chooser would set them (DOM.setFileInputFiles
   // fires input/change itself). Paths must be absolute and exist on this machine.
   async upload(i, paths) {
-    const { session, local } = this.target(i);
+    const { session } = this.target(i);
     await this.assertAllowed(session);
-    const { result, exceptionDetails } = await this.cdp.send("Runtime.evaluate", { expression: guardedExpression(`window.__jev?.[${local - 1}]`) }, 15000, session);
-    if (exceptionDetails) throw new Error(exceptionDetails.exception?.description?.split("\n")[0] || "page script error");
+    const { result, exceptionDetails } = await this.cdp.send("Runtime.evaluate", { expression: guardedExpression(this.elementExpression(i, "el")) }, 15000, session);
+    if (exceptionDetails) {
+      const message = exceptionDetails.exception?.description?.split("\n")[0] || "page script error";
+      if (message.includes("JEV_STALE_ELEMENT")) throw new StalePage("element document changed or frame detached; re-observe");
+      throw new Error(message);
+    }
     if (!result?.objectId) throw new StalePage(`element ${i} is gone; re-observe`);
     await this.cdp.send("DOM.setFileInputFiles", { files: paths, objectId: result.objectId }, 30000, session);
   }
@@ -736,10 +819,9 @@ export class Tab {
   async insert(text) { await this.assertAllowed(); await this.cdp.send("Input.insertText", { text }, 15000 + 2 * text.length); }
 
   async select(i, optionText) {
-    const { session, local } = this.target(i);
-    const ok = await this.evaluate(`(() => { const el = window.__jev?.[${local - 1}]; if (!el) return false;
+    const ok = await this.evaluateElement(i, `(() => {
       const o = [...el.options].find((o) => o.text.replace(/\\s+/g, ' ').trim() === ${JSON.stringify(optionText)}); if (!o) return false;
-      el.value = o.value; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`, session).catch(() => false);
+      el.value = o.value; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
     if (!ok) throw new StalePage(`option "${optionText}" not found in element ${i}`);
   }
 
@@ -792,6 +874,7 @@ export class Tab {
         const { data } = await this.cdp.send("Page.captureScreenshot", { format: "jpeg", quality: 50 });
         return Buffer.from(data, "base64");
       } catch (e) {
+        if (e.name === "AbortError") throw e;
         why.push(e.message);
         if (attempt < 2) await sleep(250 * (attempt + 1));
       }
@@ -838,6 +921,7 @@ export class Tab {
     }
     if (!fresh) return null;
     const next = await Tab.attach(fresh);
+    if (!BRIDGE) liveTabs.add(next);
     next.created = true; // this run's page opened it: a batch closes it as it would a tab it opened
     await next.settle();
     await this.close();
@@ -850,6 +934,8 @@ export class Tab {
     this.cdp.close();
     if (BRIDGE) { const link = this.cdp.link; await link.command("cdp_close", { tabId: this.tabId }).catch(() => {}); releaseBridge(link); return; }
     try { await fetch(`${HTTP}/json/close/${this.targetId}`); } catch {}
+    liveTabs.delete(this);
+    await reclaimChrome();
   }
 
   // Bridge: let go of the tab but leave it open, which also lifts Chrome's debugging banner; reattach()
@@ -863,11 +949,10 @@ export class Tab {
     releaseBridge(link);
   }
 
-  // A fresh attach to the same tab. Element indices from the last observe stay valid: the page keeps
-  // window.__jev, and indices inside cross-origin frames go stale with their old sessions.
+  // A fresh CDP session can address the same frame target; document generation is checked on use.
   async reattach() {
     const t = await Tab.attach(bridgeTarget(await (await bridge()).command("cdp_attach", { tabId: this.tabId }, 20000)));
-    if (this.snap && await t.evaluate("window.__jevSnap").catch(() => null) === this.snap) { t.targets = this.targets; t.snap = this.snap; t.elements = this.elements; }
+    await t.restoreSnapshot(this);
     t.lines = this.lines; t.url = this.url;
     return t;
   }

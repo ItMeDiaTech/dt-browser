@@ -115,3 +115,26 @@ live("a cross-origin frame inside another cross-origin frame is indexed and acti
     assert.ok((await tab.observe()).lines.includes("Gift card GC-42 accepted"));
   } finally { await tab.close(); }
 });
+
+// DOM.getBoxModel reports viewport coordinates while DOM.getNodeForLocation reads document ones, so a
+// frame origin captured after scrollIntoView only hit-tests correctly once the scroll is added back.
+// Before that fix every click into a cross-origin frame below the fold threw StalePage forever, which
+// is the lockout a real page hit. Focus transfer into an OOPIF is judged elsewhere: it depends on OS
+// window focus and would make this a flaky measure of the hit test.
+live("a cross-origin frame below the fold is clickable without re-observing", async (t) => {
+  const tab = await openAt(t, "frames_scrolled.html");
+  if (!tab) return;
+  try {
+    for (let k = 0; k < 30 && !find(await tab.observe(), "Apply coupon"); k++) await new Promise((r) => setTimeout(r, 100));
+    let p = await tab.observe();
+    assert.equal(await tab.evaluate("scrollY"), 0, "the frame must start below the fold for this check");
+    const button = pick(p, "Apply coupon");
+    assert.match(button.frame, /^http:\/\/localhost:/);
+    const located = await tab.locate(button.i);
+    assert.equal(located.covered, false, "nothing covers the frame");
+    await tab.click(button.i);
+    await tab.settle();
+    const said = await tab.evaluateElement(button.i, "el.ownerDocument.getElementById('s').textContent");
+    assert.equal(said, "coupon frame clicked", "the click was delivered inside the frame itself");
+  } finally { await tab.close(); }
+});

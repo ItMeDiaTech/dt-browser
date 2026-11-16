@@ -1,0 +1,7 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Coupon frame</title></head>
+<body style="margin:0"><button id="b">Apply coupon</button><p id="s">idle</p>
+<script>
+// Records a real click in this document, so a test can tell the click reached this frame rather
+// than being reported as delivered by the tab that dispatched it.
+document.getElementById("b").addEventListener("click", () => { document.getElementById("s").textContent = "coupon frame clicked"; });
+</script></body></html>
