@@ -179,6 +179,8 @@ const isolated = async (prefix) => {
     });
   };
   const cleanup = async () => {
+    // forceClose already waits for a booting browser; this waits for it to be gone before the
+    // profile directory is removed, so the two cannot race.
     await forceClose();
     for (let attempt = 0; attempt < 30 && await probe(); attempt++) await new Promise((r) => setTimeout(r, 100));
     await rm(profile, { recursive: true, force: true, maxRetries: 15, retryDelay: 100 }).catch(() => {});
@@ -245,8 +247,12 @@ test("a second process's tab keeps the shared Chrome alive when this process clo
       const { Tab } = await import(${JSON.stringify(moduleUrl)});
       const tab = await Tab.open();
       console.log("ready");
+      process.stdin.setEncoding("utf8");
+      process.stdin.on("data", async () => {
+        try { console.log("probe=" + await tab.evaluate("1+1")); } catch (e) { console.log("probe=ERR " + e.message); }
+      });
       setInterval(() => {}, 1000);
-    `], { env: { ...process.env }, stdio: ["ignore", "pipe", "inherit"] });
+    `], { env: { ...process.env }, stdio: ["pipe", "pipe", "inherit"] });
     const ready = await new Promise((done) => {
       const timer = setTimeout(() => done(false), 30000);
       holder.stdout.on("data", (chunk) => { if (String(chunk).includes("ready")) { clearTimeout(timer); done(true); } });
@@ -257,6 +263,15 @@ test("a second process's tab keeps the shared Chrome alive when this process clo
     await mine.close();
     await new Promise((r) => setTimeout(r, 2500));
     assert.equal(await alive(), true, "another process's open tab keeps the shared Chrome alive");
+    // Alive is not enough: the survivor must still take work. Ask the holder to run a script and
+    // report back, which exercises its CDP session rather than only the browser's socket.
+    holder.stdin.write("probe" + String.fromCharCode(10));
+    const answered = await new Promise((done) => {
+      const timer = setTimeout(() => done(null), 15000);
+      const onData = (chunk) => { const m = String(chunk).match(/probe=(\d+)/); if (m) { clearTimeout(timer); holder.stdout.off("data", onData); done(Number(m[1])); } };
+      holder.stdout.on("data", onData);
+    });
+    assert.equal(answered, 2, "the other process's CDP session still works after this process closed its tab");
     t.diagnostic("shared chrome survived this process's last tab close");
   } finally {
     holder?.kill();
