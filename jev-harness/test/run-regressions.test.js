@@ -7,9 +7,10 @@ import { join } from "node:path";
 
 process.env.JEV_HOME = mkdtempSync(join(tmpdir(), "jev-run-regression-"));
 process.env.TYPESAFE_API_KEY = "test";
-const { browse } = await import("../src/engine.js");
+const { browse, failureShot } = await import("../src/engine.js");
 const { remember } = await import("../src/memory.js");
 const { ask, JevError } = await import("../src/jev.js");
+const { StalePage, Tab } = await import("../src/browser.js");
 
 function fixture(pages, { irreversible = 0, delay = 0 } = {}) {
   let current = 0, clicks = 0;
@@ -196,4 +197,93 @@ test("compound fills cannot execute more actions than the remaining budget", asy
   assert.deepEqual(typed, [1]);
   assert.equal(result.steps.length, 1);
   assert.equal(result.status, "max_steps");
+});
+
+test("frame navigation or lost focus after a typing click never repeats the action, including cached replay", async (t) => {
+  for (const cached of [false, true]) for (const failure of ["frame-navigated", "frame-unfocused", "clear-stale", "clear-unfocused", "insert-stale"]) await t.test(`${cached ? "cached" : "cold"}: ${failure}`, async () => {
+    if (cached) delete process.env.JEV_NO_MEMORY; else process.env.JEV_NO_MEMORY = "1";
+    const field = { i: 1, kind: "fill", role: "textbox", label: "Name", value: "", frame: "https://frame.test/" };
+    const f = fixture([{ lines: ["Name"], elements: [field] }]);
+    let clicks = 0, inserted = 0, decisions = 0, evaluations = 0, clears = 0;
+    globalThis.fetch = async (_url, { body }) => {
+      const { questions } = JSON.parse(body);
+      if (questions.action) decisions++;
+      const answers = Object.fromEntries(Object.entries(questions).map(([id, q]) => {
+        if (q.type === "noul") return [id, { noul: 0 }];
+        const ids = Object.keys(q.criteria), choice = id === "action" ? "type_1" : id === "text_1" ? "Ada" : ids[0];
+        return [id, { choice, probabilities: Object.fromEntries(ids.map((key) => [key, +(key === choice)])) }];
+      }));
+      return new Response(JSON.stringify({ answers }));
+    };
+    const tab = Object.assign(new Tab(), f.tab);
+    tab.click = Tab.prototype.click;
+    const frame = { targetId: "frame-target" };
+    tab.frames = new Map([["frame-session", frame]]);
+    tab.targets = [{ session: "frame-session", local: 1, snap: "frame-snapshot", frame }];
+    tab.assertAllowed = async () => {};
+    tab.locate = async () => ({ x: 10, y: 10, covered: false, editContext: false });
+    tab.cdp = { send: async (method, params) => {
+      assert.equal(method, "Input.dispatchMouseEvent");
+      if (params.type === "mouseReleased") clicks++;
+    } };
+    tab.evaluateElement = async () => {
+      evaluations++;
+      if (evaluations === 2) clears++;
+      if (failure === "frame-navigated" || failure === "clear-stale" && evaluations === 2 || failure === "insert-stale" && evaluations === 3) throw new StalePage("frame navigated after mutation");
+      return !(failure === "frame-unfocused" || failure === "clear-unfocused" && evaluations === 2);
+    };
+    tab.insert = async () => { inserted++; };
+    const goal = 'Type "Ada" into Name.';
+    if (cached) remember(f.url, goal, [{ op: "type", role: "textbox", label: "Name", text: "Ada", submit: false }]);
+    const result = await browse({ tab }, goal, { maxSteps: 3 });
+    assert.equal(result.status, "error");
+    assert.equal(clicks, 1, "click must not repeat");
+    assert.equal(decisions, 1, "no second browser action is selected");
+    assert.equal(inserted, failure === "insert-stale" ? 1 : 0, "no text may reach the replacement or unfocused frame");
+    assert.equal(clears, failure.startsWith("frame-") ? 0 : 1, "focus/clear mutations must not repeat");
+    assert.equal(result.steps.length, 0, "an interrupted type must not be recorded as completed");
+  });
+});
+
+test("cancellation during cached replay escapes before another judgment or action", async () => {
+  delete process.env.JEV_NO_MEMORY;
+  const f = fixture([{ lines: ["Ready"] }]);
+  const goal = "Advance through the cancelled fixture.";
+  remember(f.url, goal, [{ op: "click", role: "button", label: "Next page" }]);
+  const cancellation = new DOMException("fixture cancelled", "AbortError");
+  let requests = 0;
+  globalThis.fetch = async () => { requests++; throw cancellation; };
+  await assert.rejects(browse({ tab: f.tab }, goal, { fields: { title: "title" } }), (error) => error === cancellation);
+  assert.equal(requests, 1);
+  assert.equal(f.clicks(), 0);
+});
+
+test("popup cancellation after a completed click cannot resume either run path", async () => {
+  for (const cached of [false, true]) {
+    if (cached) delete process.env.JEV_NO_MEMORY; else process.env.JEV_NO_MEMORY = "1";
+    const f = fixture([{ lines: ["Ready"] }]);
+    const goal = "Advance through the interrupted popup fixture.";
+    if (cached) remember(f.url, goal, [{ op: "click", role: "button", label: "Next page" }]);
+    const respond = globalThis.fetch, cancellation = new DOMException("fixture cancelled", "AbortError");
+    let requests = 0;
+    globalThis.fetch = async (...args) => { requests++; return respond(...args); };
+    f.tab.adoptPopup = async () => { throw cancellation; };
+    await assert.rejects(browse({ tab: f.tab }, goal, { fields: { title: "title" } }), (error) => error === cancellation);
+    assert.equal(requests, 1);
+    assert.equal(f.clicks(), 1);
+  }
+});
+
+test("screenshot cancellation preserves AbortError instead of becoming a failed capture", async () => {
+  const cancellation = new DOMException("fixture cancelled", "AbortError");
+  let captures = 0;
+  const tab = new Tab();
+  tab.assertAllowed = async () => {};
+  tab.cdp = { send: async (method) => {
+    assert.equal(method, "Page.captureScreenshot");
+    captures++;
+    throw cancellation;
+  } };
+  await assert.rejects(failureShot(tab), (error) => error === cancellation);
+  assert.equal(captures, 1, "cancelled capture must not retry");
 });

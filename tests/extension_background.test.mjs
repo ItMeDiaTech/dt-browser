@@ -32,7 +32,8 @@ function load() {
     close() { this.closed = true; this.readyState = 3; this.onclose?.(); (this.listeners.close || []).forEach((f) => f()); }
     addEventListener(name, fn) { (this.listeners[name] ||= []).push(fn); }
   }
-  const unref = (f) => (...a) => { const t = f(...a); t.unref?.(); return t; };
+  const delays = []; // every setTimeout delay the service worker asks for
+  const unref = (f) => (...a) => { if (f === setTimeout) delays.push(a[1]); const t = f(...a); t.unref?.(); return t; };
   const chrome = {
     runtime: { id: EXT_ID, getManifest: () => ({ name: 'Sidecar Monkey' }), getURL: (p) => `chrome-extension://${EXT_ID}/${p}`,
       sendMessage: async () => {}, onMessage: event('message'), onStartup: event('startup'), onInstalled: event('installed') },
@@ -48,7 +49,7 @@ function load() {
   ctx.importScripts = (file) => vm.runInContext(readFileSync(new URL(`../extension/${file}`, import.meta.url), 'utf8'), ctx);
   vm.createContext(ctx);
   vm.runInContext(readFileSync(new URL('../extension/background.js', import.meta.url), 'utf8'), ctx);
-  return { sockets, local, session, removed, listeners, chrome };
+  return { sockets, local, session, removed, listeners, chrome, delays };
 }
 
 async function connected(env, { bridgeProof } = {}) {
@@ -73,6 +74,18 @@ async function command(ws, cmd, params = {}) {
   for (let i = 0; i < 50 && ws.sent.length === before; i++) await tick();
   return ws.sent.find((m) => m.id === id);
 }
+
+test('wait_for gets as long as its own timeout_ms, other page commands keep the 20 s limit', async () => {
+  const env = load();
+  const ws = await connected(env);
+  env.chrome.tabs.sendMessage = async () => ({ ok: true });
+  env.delays.length = 0;
+  assert.equal((await command(ws, 'wait_for', { target: '#ready', timeoutMs: 30000, tabId: 1 })).ok, true);
+  assert.ok(env.delays.includes(35000), `wait_for deadline: ${env.delays}`);
+  env.delays.length = 0;
+  assert.equal((await command(ws, 'click', { target: 3, tabId: 1 })).ok, true);
+  assert.ok(env.delays.includes(20000) && !env.delays.includes(35000), `click deadline: ${env.delays}`);
+});
 
 test('commands run only after the bridge proves it holds the token', async () => {
   const ws = await connected(load());

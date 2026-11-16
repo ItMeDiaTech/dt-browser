@@ -154,7 +154,7 @@ async function replay(session, plan, history, notes, goal, budget) {
     await execute(session.tab, a, secrets, page.url);
     history.push({ id: a.id, action: label(a), text: shown(a), option: a.option, page_changed: true, p: 1, replayed: true, rec: s });
     jumped = !!a.via;
-    const popup = await session.tab.adoptPopup(before).catch(() => null);
+    const popup = await session.tab.adoptPopup(before).catch((e) => { if (e.name === "AbortError") throw e; return null; });
     if (popup) { popup.reloads = session.tab.reloads; session.tab = popup; notes.push("followed a new tab"); }
     await session.tab.settle();
     const prev = page;
@@ -260,9 +260,11 @@ async function run(session, goal, { url, maxSteps = 25, timeoutMs = 150000, fiel
         notes.push(`replayed a remembered ${plan.steps.length}-step plan${plan.template ? ` (template "${plan.template}" with ${plan.values.map((v) => `"${v}"`).join(", ")})` : ""}`);
       status ||= budget();
     } catch (e) {
+      if (e.name === "AbortError") throw e;
       notes.push(`replay aborted: ${e.message.slice(0, 120)}`);
       if (outsideOrigin(e)) status = "blocked_origin";
-      else page = await session.tab.observe();
+      else if (e instanceof StalePage) page = await session.tab.observe();
+      else status = "error";
     }
     // A plan that no longer works is dropped so it cannot poison later runs; its failed vote is not
     // charged to the Jev loop, and a run that heals it re-stores the full sequence.
@@ -326,7 +328,7 @@ async function run(session, goal, { url, maxSteps = 25, timeoutMs = 150000, fiel
         for (const x of executed) history.push({ id: x.id, action: label(x), text: shown(x), option: x.option, page_changed: true, p: +x.p.toFixed(2), rec: record(x), o: +d.outcome_p.toFixed(2) });
         staleRescued = true; notes.push(`${e.message}; re-observed`); page = await session.tab.observe(); continue;
       }
-      const popup = await session.tab.adoptPopup(before).catch(() => null);
+      const popup = await session.tab.adoptPopup(before).catch((e) => { if (e.name === "AbortError") throw e; return null; });
       if (popup) { popup.reloads = session.tab.reloads; session.tab = popup; notes.push("followed a new tab"); }
       await session.tab.settle();
       const prev = page;
@@ -358,11 +360,12 @@ async function run(session, goal, { url, maxSteps = 25, timeoutMs = 150000, fiel
       if (noEffect >= 3 || waits >= 3) {
         if (stallRescued) { status = "stuck"; notes.push("three steps without progress"); break; }
         stallRescued = true; noEffect = waits = 0;
-        await session.tab.dismissBanners(); await session.tab.key("Escape").catch(() => {});
+        await session.tab.dismissBanners(); await session.tab.key("Escape").catch((e) => { if (e.name === "AbortError") throw e; });
         notes.push("no progress for three steps; cleared overlays and retried");
         page = await session.tab.observe();
       }
     } catch (e) {
+      if (e.name === "AbortError") throw e;
       status = outsideOrigin(e) ? "blocked_origin" : "error"; notes.push(e.message.slice(0, 200));
       if (e instanceof JevUnavailable) jevError = e.message.slice(0, 200); // TypeSafe itself is down: another agent may take over
     }
@@ -371,11 +374,11 @@ async function run(session, goal, { url, maxSteps = 25, timeoutMs = 150000, fiel
   if (!page) page = { url: startUrl, title: "", lines: [], elements: [] };
   else if (!["blocked_origin", "timeout"].includes(status)) {
     try { await session.tab.assertAllowed?.(); page = await session.tab.observe(); if (!originOk(page.url)) status = "blocked_origin"; }
-    catch (error) { if (outsideOrigin(error)) status = "blocked_origin"; }
+    catch (error) { if (error.name === "AbortError") throw error; if (outsideOrigin(error)) status = "blocked_origin"; }
   }
   if (status === "blocked_origin") page = { url: page.url, title: "", lines: [], elements: [] };
   const ev = ["timeout", "blocked_origin"].includes(status) ? { exists: 0, lines: [], error: status === "timeout" ? "run deadline exceeded" : "outside JEV_ALLOWED_ORIGINS" }
-    : (finalEvidence && ["done", "goal_achieved", "unverified"].includes(status)) ? finalEvidence : await evidence(goal, page.lines).catch((e) => ({ error: e.message }));
+    : (finalEvidence && ["done", "goal_achieved", "unverified"].includes(status)) ? finalEvidence : await evidence(goal, page.lines).catch((e) => { if (e.name === "AbortError") throw e; return { error: e.message }; });
   const verified = ["done", "goal_achieved"].includes(status);
   if (verified && plan) touch(plan.key); // a pure replay rewrites nothing, so eviction would drop it first
   if (verified && startUrl && history.some((h) => !h.replayed)) remember(startUrl, goal, planOf(history));
@@ -383,13 +386,14 @@ async function run(session, goal, { url, maxSteps = 25, timeoutMs = 150000, fiel
   if (!verified) for (const h of history) if (h.via) forgetSearch(h.via);
   // Structured fields read from the final page, whatever the status: a partial page may still hold them.
   let data;
-  if (fields && !["timeout", "blocked_origin"].includes(status)) { try { data = await extract(fields, page.lines); } catch (e) { notes.push(`extract failed: ${e.message.slice(0, 120)}`); } }
+  if (fields && !["timeout", "blocked_origin"].includes(status)) { try { data = await extract(fields, page.lines); } catch (e) { if (e.name === "AbortError") throw e; notes.push(`extract failed: ${e.message.slice(0, 120)}`); } }
   const u = runUsage.getStore();
   const result = {
     status, url: page.url, title: page.title,
     steps: history.map((h) => `${h.action}${h.text ? ` <- "${h.text}"` : ""}${h.option ? ` <- "${h.option}"` : ""}${h.replayed ? " (replayed)" : ` p=${h.p} outcome=${h.o}`}${h.page_changed ? "" : " (no change)"}`),
     evidence: ev,
     jev: { calls: u.calls, input_tokens: u.input_tokens, cost_usd: +(u.input_tokens * PRICE_PER_MTOK / 1e6).toFixed(5), ms: u.ms, elements_max: u.elements_max, ...(u.model ? { model: u.model } : {}), ...(jevError ? { error: jevError } : {}) },
+    ...(u.fallback ? { fallback: u.fallback } : {}),
     elapsed_ms: Date.now() - started,
   };
   if (data) Object.assign(result, data);
@@ -419,6 +423,7 @@ export async function failureShot(tab, why = null) {
     }
     return path;
   } catch (e) {
+    if (e.name === "AbortError") throw e;
     // Swallowing this made read({screenshot}) answer a bare "screenshot failed" with no cause.
     if (why) why.reason = e?.message || String(e);
     return null;

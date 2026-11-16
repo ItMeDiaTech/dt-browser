@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import functools
 import hmac
 import json
 import logging
@@ -469,6 +470,14 @@ def build_mcp(ctl: Controller) -> FastMCP:
         allowed_origins=[],
     ))
 
+    def off_loop(fn):
+        """FastMCP calls a sync tool on the server's event loop. These block on the extension for up
+        to minutes (loop_check, upload_files), which would stall every other MCP request meanwhile."""
+        @functools.wraps(fn)
+        async def wrapper(*args, **kwargs):
+            return await asyncio.to_thread(fn, *args, **kwargs)
+        return wrapper
+
     def save_screenshot_result(res: dict, save_path: str | None) -> dict:
         if not save_path or not res.get("dataUrl"):
             return res
@@ -487,6 +496,7 @@ def build_mcp(ctl: Controller) -> FastMCP:
         return res
 
     @mcp.tool()
+    @off_loop
     def browser_health(include_tabs: bool = False) -> dict:
         """Connection health, tab count, and active tab. Set include_tabs only when the full tab inventory is needed."""
         ws = ctl.get_ws()
@@ -514,6 +524,7 @@ def build_mcp(ctl: Controller) -> FastMCP:
             return {"extension_connected": True, "error": str(e)}
 
     @mcp.tool()
+    @off_loop
     def browser_read(
         mode: str = "page",
         query: str | None = None,
@@ -574,6 +585,7 @@ def build_mcp(ctl: Controller) -> FastMCP:
         )
 
     @mcp.tool()
+    @off_loop
     def browser_do(command: str, params: dict | None = None) -> dict:
         """Run one browser command with snake_case params. Use browser_help for the on-demand command/parameter catalog; use browser_read for bounded page inspection."""
         spec = COMMAND_SPECS.get(command)

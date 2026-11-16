@@ -60,6 +60,13 @@ class CompactSurfaceTests(unittest.TestCase):
         compact = schema_chars(bridge.build_mcp(FakeController()))
         self.assertLess(compact, 6000, compact)
 
+    def test_blocking_tools_run_off_the_event_loop(self):
+        # A sync tool runs on the HTTP server's loop: one long loop_check would stall every client.
+        tools = bridge.build_mcp(FakeController())._tool_manager._tools
+        for name in ("browser_health", "browser_read", "browser_do"):
+            self.assertTrue(tools[name].is_async, name)
+        self.assertEqual(set(tools["browser_do"].parameters["properties"]), {"command", "params"})
+
 
 class ControllerConcurrencyTests(unittest.TestCase):
     def test_registered_command_fails_when_socket_is_replaced(self):
@@ -83,7 +90,8 @@ class CompactToolTests(unittest.TestCase):
         self.mcp = bridge.build_mcp(self.controller)
 
     def call(self, name: str, *args, **kwargs):
-        return self.mcp._tool_manager._tools[name].fn(*args, **kwargs)
+        result = self.mcp._tool_manager._tools[name].fn(*args, **kwargs)
+        return asyncio.run(result) if asyncio.iscoroutine(result) else result
 
     def test_health_omits_tab_inventory_but_reports_active_tab(self):
         result = self.call("browser_health")

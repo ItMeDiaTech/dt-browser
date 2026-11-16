@@ -17,7 +17,7 @@ real Chrome) and shares no code with it, but can drive your real Chrome through 
 
 ```
 caller ──MCP stdio──► cli.js ──► engine.js (loop, budgets, stop gates)
-                                   ├─► jev.js    one TypeSafe request per step
+                                   ├─► jev.js    TypeSafe judgments; opt-in gateway fallback
                                    └─► browser.js raw CDP → dedicated Chrome (port 9333)
 ```
 
@@ -123,12 +123,88 @@ Environment variables:
 | `DT_BRIDGE_TOKEN` / `JEV_BRIDGE_TOKEN_FILE` | Bridge token for `JEV_BRIDGE` (default: `token.txt` in the bridge folder) |
 | `JEV_TRACE=<file>` or `1` | One JSON line per Jev request (question ids, option counts, state size, tokens, latency; no page text, goals or typed values). `1` writes `~/.jev-harness/trace.jsonl` |
 
+### Optional gateway fallback
+
+Jev remains primary. There is no automatic provider discovery or credential reuse. To enable
+fallback, set all of the following in the harness process environment (they are not read from
+`JEV_ENV_FILE`):
+
+| Variable | Required value |
+|---|---|
+| `JEV_FALLBACK` | `1`; unset disables fallback |
+| `JEV_FALLBACK_SHARE_DATA` | `1`, explicit consent to send the current judgment's data to this gateway |
+| `JEV_FALLBACK_URL` | Full OpenAI-compatible Chat Completions URL, including `/v1/chat/completions` (or the gateway's equivalent path) |
+| `JEV_FALLBACK_MODEL` | An actual model ID supported by that gateway; no default or guessed alias |
+| `JEV_FALLBACK_API_KEY` | That gateway's separate credential, provisioned outside the repository |
+
+HTTPS is required except for loopback HTTP. URL credentials, query strings, fragments and redirects
+are refused. A Luna route through ECPA is an intended configuration if your gateway exposes Chat
+Completions and JSON object responses; its endpoint, model ID and credential must be supplied by
+the operator. This adapter does not configure ECPA, use native Anthropic subscriptions, or fall back
+to an Anthropic API key. No gateway/model compatibility or performance has been measured here.
+
+**Data consent applies to every model-dependent tool**, including `browse`, cached replay judgments,
+and `read` with query/extraction. The gateway receives the current request's goals/questions, page
+excerpts and element labels, candidate values, and recent action history where present. These can
+contain private signed-in page data or literal text from goals and prior actions. Stored credential
+values remain local and use the existing markers; secrets written directly in a goal or page are not
+automatically removed. The TypeSafe credential, bridge token, credential files and provider error
+bodies are not forwarded. Bridge token location and authentication are unchanged. Enable data
+sharing only for a gateway and content you authorize; disable it by unsetting `JEV_FALLBACK`.
+
+Fallback triggers only for missing TypeSafe credentials, HTTP 401/402/403/429/5xx, or exhausted
+connection/timeout attempts. Existing TypeSafe retries finish first (network: up to three attempts;
+429/503/529: up to four). HTTP 400/422, malformed answers, explicit cancellation (`AbortError`),
+browser failures, `stuck` and failed completion checks never trigger it. Only the unanswered
+judgment is resubmitted; completed browser actions and whole goals are not replayed by fallback.
+Cancellation during fetch or response-body reading propagates as the original `AbortError` out of
+`browse`, including cached replay, completion checks, final evidence and extraction. No later
+judgment is issued for that cancelled run; the caller receives an error rather than a normal status.
+Each later judgment still tries Jev first. The gateway gets one attempt with a 30-second timeout;
+failure or malformed output ends that judgment without a gateway retry. No tools are exposed to it.
+Its JSON must contain all requested answers, valid offered choices/distributions, and finite
+probabilities in [0,1], using the existing action, input and irreversible-action checks.
+
+Gateway probabilities are model-reported estimates, not Jev's calibrated outputs. The existing
+thresholds are retained but have not been validated for Luna or any other fallback model. `browse`
+results include separate `fallback` usage (also per task in `browse_many`); its `model` is the
+configured model ID and `cost_usd` is `null` because gateway pricing is unknown. `jev` counters/cost
+and `JEV_TRACE` still cover TypeSafe only. Query/extraction reads do not report usage.
+
 Statuses:
 - `done` / `goal_achieved`: verified by on-page evidence.
 - `unverified`: Jev voted done twice, but the evidence check stayed low.
 - `stuck`, `needs_confirmation`, `blocked_origin`, `max_steps`, `timeout`, `error`.
 
 Every result carries `jev.cost_usd`. A failed run also carries the element table and a screenshot path.
+
+### Iframes and stale indices
+
+Same-origin frame documents are walked with the page snapshot. Cross-origin out-of-process frames
+use Chrome's auto-attached CDP sessions, including nested targets; there is no DOM origin bypass.
+Indexed actions validate both the snapshot generation and the element's document attachment before
+accessing it. A navigated, detached or replaced frame requires a fresh `read`/observation. Across
+relay tool calls, new sessions are rebound only to the same Chrome frame target ID, with the old
+snapshot generation still checked before use; frames are never substituted by URL or page position.
+Discovery still requires an auto-attached CDP target for a cross-origin document; cross-origin
+documents kept in the page process without such a target are not indexed by this patch.
+This does not make a series of CDP commands atomic: if a frame changes after input was dispatched,
+the run reports an error stating that input may have happened and does not request the engine's
+stale-action retry. Clicking a frame field, focusing it and clearing its value can already run page
+handlers. Failures after those boundaries stop both cold runs and cached replay, even if no text was
+inserted. Credential text is still refused unless the intended field keeps focus. Re-read and inspect
+the result before repeating an action.
+
+Offline regression checks need no provider or Chrome:
+
+```powershell
+node --test test/fallback.test.js test/frame-lifecycle.test.js
+```
+
+`node --test test/frame-browser.test.js` additionally checks synthetic same-/cross-origin iframe
+typing, selection, clicking, navigation and detachment in a temporary headless Chrome profile on a
+temporary CDP port. It never uses the standing bridge or operator tabs. It requires a working local
+Chrome executable (`JEV_CHROME` can select one); a failed prerequisite is a failure, not a pass/skip.
 
 ## Use your own Chrome
 

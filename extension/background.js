@@ -514,15 +514,15 @@ function waitForComplete(tabId, timeoutMs) {
   });
 }
 
-async function contentMessage(tabId, cmd, params) {
+async function contentMessage(tabId, cmd, params, timeoutMs = 20000) {
   try {
     return await withTimeout(
       chrome.tabs.sendMessage(tabId, { type: 'dtb', cmd, params: params || {} }),
-      20000
+      timeoutMs
     );
   } catch (e) {
     if (e && /timed out after/.test(e.message || '')) {
-      throw new Error('content script did not respond within 20s (page busy or hung)');
+      throw new Error(`content script did not respond within ${Math.round(timeoutMs / 1000)}s (page busy or hung)`);
     }
     // If receiving end does not exist (e.g. extension was reloaded or tab opened before extension installed),
     // automatically re-inject content.js via scripting API and retry once before failing.
@@ -535,7 +535,7 @@ async function contentMessage(tabId, cmd, params) {
         await new Promise((r) => setTimeout(r, 120));
         return await withTimeout(
           chrome.tabs.sendMessage(tabId, { type: 'dtb', cmd, params: params || {} }),
-          20000
+          timeoutMs
         );
       } catch (injectErr) {
         // Fall through to error below if page is restricted (e.g. chrome://)
@@ -904,7 +904,9 @@ async function handleCommand(msg, s) {
     case 'read':
     case 'wait_for': {
       const tid = await resolveTabId(p);
-      const res = await contentMessage(tid, cmd, p);
+      // wait_for runs as long as its own timeout_ms in the page; the default 20 s would cut it short.
+      const waitMs = Number(p.timeoutMs ?? 10000);
+      const res = await contentMessage(tid, cmd, p, cmd === 'wait_for' && Number.isFinite(waitMs) ? Math.max(20000, waitMs + 5000) : undefined);
       if (res && typeof res === 'object') {
         res.tabId = tid;
         const name = tabNames.get(tid);

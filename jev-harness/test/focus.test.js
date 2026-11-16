@@ -9,7 +9,7 @@ test("clearing events cannot redirect subsequent typing into another control", a
     const document = { activeElement: null, getSelection: () => ({ selectAllChildren() {} }) };
     const decoy = { value: "" };
     class Field {
-      constructor() { this.value = "old"; this.ownerDocument = document; this.tagName = "INPUT"; this.isContentEditable = editable; }
+      constructor() { this.value = "old"; this.ownerDocument = document; this.tagName = "INPUT"; this.isContentEditable = editable; this.isConnected = true; }
       focus() { document.activeElement = this; }
       getRootNode() { return document; }
       dispatchEvent() { document.activeElement = decoy; }
@@ -28,7 +28,7 @@ test("clearing events cannot redirect subsequent typing into another control", a
       assert.equal(method, "Runtime.evaluate");
       return { result: { value: vm.runInContext(params.expression, context) } };
     } };
-    await assert.rejects(tab.type(1, "fixture value"), StalePage);
+    await assert.rejects(tab.type(1, "fixture value"), (error) => !(error instanceof StalePage) && /did not keep focus/.test(error.message));
     assert.equal(decoy.value, "");
   }
 });
@@ -42,7 +42,7 @@ test("a focus trap cannot redirect typed text, such as a stored password, into a
   try {
     await tab.goto("data:text/html," + encodeURIComponent(html));
     const page = await tab.observe();
-    await assert.rejects(tab.type(page.elements.find((e) => e.kind === "secret").i, "hunter2"), StalePage);
+    await assert.rejects(tab.type(page.elements.find((e) => e.kind === "secret").i, "hunter2"), (error) => !(error instanceof StalePage) && /did not keep focus/.test(error.message));
     assert.deepEqual(await tab.evaluate("[pw.value, news.value]"), ["", ""]);
     await tab.type(page.elements.find((e) => e.label === "User").i, "ada");
     assert.equal(await tab.evaluate("user.value"), "ada", "a field that keeps focus is still typed into");
