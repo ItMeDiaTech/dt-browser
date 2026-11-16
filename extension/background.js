@@ -385,7 +385,11 @@ async function cdpPick(url, s) {
     const { relayWindowId } = await chrome.storage.session.get({ relayWindowId: null });
     if (relayWindowId !== null) { try { windowId = (await chrome.windows.get(relayWindowId)).id; } catch {} }
   } else {
-    try { windowId = (await chrome.windows.getLastFocused({ windowTypes: ['normal'] })).id; } catch {}
+    try { windowId = (await chrome.windows.getLastFocused({ windowTypes: ['normal'] })).id; } catch {
+      // getLastFocused throws when the focused window is not a normal one (DevTools, a popup), which
+      // used to fall through to creating a whole new about:blank window on every run.
+      windowId = (await chrome.windows.getAll({ windowTypes: ['normal'] }))[0]?.id;
+    }
   }
   let tab;
   if (windowId === undefined) {

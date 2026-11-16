@@ -255,3 +255,28 @@ test('a name whose tab already closed never falls through to a URL or title matc
   assert.equal((await command(ws, 'remove_tab', { name: 'invoice' })).ok, false);
   assert.deepEqual(env.removed, []);
 });
+
+test('a non-normal focused window (DevTools, a popup) reuses a normal window instead of opening one', async () => {
+  const env = load(), ws = await connected(env);
+  // Nothing attachable is left, so cdp_open has to create a tab and therefore needs a window.
+  env.chrome.tabs.query = async () => [];
+  env.chrome.windows.getLastFocused = async () => { throw new Error('no normal focused window'); };
+  env.chrome.windows.getAll = async ({ windowTypes }) => windowTypes.includes('normal') ? [{ id: 42 }] : [];
+  const created = [], tabCreated = [];
+  env.chrome.windows.create = async (opts) => { created.push(opts); return { id: 99, tabs: [{ id: 99 }] }; };
+  env.chrome.tabs.create = async (opts) => { tabCreated.push(opts); return { id: 50 }; };
+  await command(ws, 'cdp_open', { url: 'https://example.test/new' });
+  assert.deepEqual(created, [], 'no new about:blank window was created');
+  assert.deepEqual(tabCreated.map((o) => [o.windowId, o.url]), [[42, 'about:blank']]);
+});
+
+test('a new window is created only when no normal window exists at all', async () => {
+  const env = load(), ws = await connected(env);
+  env.chrome.tabs.query = async () => [];
+  env.chrome.windows.getLastFocused = async () => { throw new Error('no normal focused window'); };
+  env.chrome.windows.getAll = async () => [];
+  const created = [];
+  env.chrome.windows.create = async (opts) => { created.push(opts); return { id: 99, tabs: [{ id: 99 }] }; };
+  await command(ws, 'cdp_open', { url: 'https://example.test/new' });
+  assert.deepEqual(created.map((o) => o.url), ['about:blank']);
+});
