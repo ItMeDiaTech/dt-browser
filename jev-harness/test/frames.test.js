@@ -132,6 +132,11 @@ live("a cross-origin frame below the fold is clickable without re-observing", as
     assert.match(button.frame, /^http:\/\/localhost:/);
     const located = await tab.locate(button.i);
     assert.equal(located.covered, false, "nothing covers the frame");
+    // Pin the property the name claims: the point is a real viewport position after scrolling the
+    // frame in, so a covered=true fallback could not deliver this click either way.
+    const [scrollY, innerHeight] = await tab.evaluate("[scrollY, innerHeight]");
+    assert.ok(scrollY > 0, "locating scrolled the page to the frame");
+    assert.ok(located.y >= 0 && located.y <= innerHeight, `click point ${located.y} is inside the ${innerHeight}px viewport`);
     await tab.click(button.i);
     await tab.settle();
     const said = await tab.evaluateElement(button.i, "el.ownerDocument.getElementById('s').textContent");

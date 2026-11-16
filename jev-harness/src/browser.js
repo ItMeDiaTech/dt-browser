@@ -2,7 +2,7 @@
 // snapshot the page into indexed elements, and execute actions with trusted input events.
 import { spawn } from "node:child_process";
 import { createHmac, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -316,31 +316,40 @@ async function pageIds() {
   return list.filter((t) => t.type === "page");
 }
 
-// Every harness process in a Chrome profile shares one browser on purpose, so a tab close must not
-// take Chrome from another agent mid-run, and a fresh profile always has about:blank plus background
-// roots, so an empty /json/list is not the signal. Track the tabs this process holds instead: Chrome
-// is reclaimed only when this process opened some and has closed them all. Counting a Set rather than
-// a number keeps a popup adopted through attach() from leaving the count short by one.
+// Every harness process in a profile shares one Chrome on purpose, so reclaim must not take the
+// browser from another agent mid-run. liveTabs only covers this process; another agent's open tab is
+// the cross-process evidence, and /json/list always holds the launch about:blank, so more than one
+// page means someone else is working. Killing then waits for a later close rather than guessing.
+// Matched on the debugging port, which names exactly the browser this process is talking to.
 const liveTabs = new Set();
 async function reclaimChrome() {
   if (!chromePid || liveTabs.size > 0) return;
   const pid = chromePid;
-  chromePid = null;
   try {
+    const pages = await pageIds();
+    if (pages.length > 1) return;
+    chromePid = null;
+    const lock = join(chromeProfile(), "jev-launch.lock");
     if (process.platform === "win32") {
       const { execFile } = await import("node:child_process");
-      // The profile travels in the environment: interpolating a Windows path into a -Command string
-      // loses it to two layers of quoting, and a false mismatch means Chrome is never reclaimed.
-      // Matched against the whole command line rather than a PID lookup, because Win32_Process
-      // reports some Chrome roots with an empty CommandLine.
+      // The port travels in the environment: interpolating a value into a -Command string loses it
+      // to two layers of quoting. A PID lookup is unreliable here because Win32_Process reports some
+      // Chrome roots with an empty CommandLine, so match the roots by the port they expose.
       await new Promise((done) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command",
         "$c = Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | " +
-        "Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($env:DTB_PROFILE, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and $_.CommandLine -notlike '*--type=*' }; " +
+        "Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($env:DTB_PORT, [StringComparison]::OrdinalIgnoreCase) -ge 0 -and $_.CommandLine -notlike '*--type=*' }; " +
         "$c | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
-      ], { windowsHide: true, env: { ...process.env, DTB_PROFILE: chromeProfile() } }, () => done()));
+      ], { windowsHide: true, env: { ...process.env, DTB_PORT: `--remote-debugging-port=${PORT}` } }, () => done()));
     } else {
-      try { process.kill(pid, "SIGTERM"); } catch {}
+      // Identity is checked where the platform exposes it, so a PID reused after Chrome died is not
+      // signalled; elsewhere the PID this process spawned is trusted.
+      let ours = true;
+      try { ours = readFileSync(`/proc/${pid}/cmdline`, "utf8").includes(`--remote-debugging-port=${PORT}`); } catch {}
+      if (ours) { try { process.kill(pid, "SIGTERM"); } catch {} }
     }
+    // The lock marks a launch in progress, and it now outlives the browser it guarded: leaving it
+    // makes the next open wait up to LAUNCH_LOCK_MS and then throw when that window is short.
+    try { rmSync(lock, { force: true }); } catch {}
   } catch {}
 }
 
@@ -475,10 +484,19 @@ export class Tab {
     if (url && !originOk(url)) throw new OriginBlocked(`${url} is outside JEV_ALLOWED_ORIGINS`);
     if (BRIDGE) return Tab.attach(bridgeTarget(await (await bridge()).command("cdp_open", url ? { url } : {}, 20000)));
     await ensureChrome();
-    const target = await (await fetch(`${HTTP}/json/new?about:blank`, { method: "PUT" })).json();
-    const tab = await Tab.attach(target);
-    liveTabs.add(tab);
-    return tab;
+    // A failure before the tab is registered would leave a launch nothing can ever reclaim, which is
+    // the same leak this function exists to prevent, moved onto the error path.
+    let target = null;
+    try {
+      target = await (await fetch(`${HTTP}/json/new?about:blank`, { method: "PUT" })).json();
+      const tab = await Tab.attach(target);
+      liveTabs.add(tab);
+      return tab;
+    } catch (error) {
+      if (target?.id) await fetch(`${HTTP}/json/close/${target.id}`).catch(() => {});
+      await reclaimChrome();
+      throw error;
+    }
   }
   static async attach(target) {
     const tab = new Tab();
@@ -718,6 +736,10 @@ export class Tab {
     const { session } = this.target(i);
     const r = await this.evaluateElement(i, `(() => {
       el.scrollIntoView({ block: 'center', inline: 'nearest' });
+      // Read geometry in the next rendering frame: a mouse event dispatched into a compositor whose
+      // hit-test region still reflects the pre-scroll layout lands nowhere, which reads as a click
+      // that reported success. The wait is one frame, so it costs nothing when the page is settled.
+      return new Promise((resolve) => requestAnimationFrame(() => {
       // An empty EditContext has no width; click its rendered parent surface instead.
       const surface = el.editContext && el.parentElement && el.getBoundingClientRect().width < 2 ? el.parentElement : el;
       const b = surface.getBoundingClientRect();
@@ -735,7 +757,8 @@ export class Tab {
         outer = root.host || root.defaultView?.frameElement; if (!outer) break;
       }
       if (outer && outer !== el) { const hit = document.elementFromPoint(X, Y); covered ||= !hit || !(hit === outer || outer.contains(hit)); }
-      return { x: X, y: Y, covered, editContext: !!el.editContext }; })()`);
+      resolve({ x: X, y: Y, covered, editContext: !!el.editContext });
+      })); })()`);
     if (session) {
       // Same check one level up for a cross-origin frame: the page must hit the frame's <iframe>.
       let o, hit;
